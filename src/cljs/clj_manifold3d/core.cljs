@@ -89,7 +89,9 @@
    (smooth mesh #js []))
   ([mesh sharpened-edges]
    (.then manifold-module
-          (fn [module] (.smooth module mesh sharpened-edges)))))
+          (fn [module]
+            (.setup module)
+            (.smooth module mesh sharpened-edges)))))
 
 (defn extrude
   ([polygons height]
@@ -101,6 +103,7 @@
   ([polygons height n-divisions twist-degrees scale-top]
    (.then manifold-module
           (fn [module]
+            (.setup module)
             (.extrude module polygons height n-divisions twist-degrees scale-top)))))
 
 (defn triangulate
@@ -130,19 +133,26 @@
   ([a b]
    (.then (js/Promise.all #js [manifold-module a b])
           (fn [[module & args]]
+            (.setup module)
             (.union module args))))
   ([a b & more]
    (.then (js/Promise.all (list* manifold-module a b more))
-          (fn [[module & args]] (.union module args)))))
+          (fn [[module & args]]
+            (.setup module)
+            (.union module args)))))
 
 (defn difference
   ([a] a)
   ([a b]
    (.then (js/Promise.all #js [manifold-module a b])
-          (fn [[module & args]] (.difference module args))))
+          (fn [[module & args]]
+            (.setup module)
+            (.difference module args))))
   ([a b & more]
    (.then (js/Promise.all (list* manifold-module a b more))
-          (fn [[module & args]] (.difference module args)))))
+          (fn [[module & args]]
+            (.setup module)
+            (.difference module args)))))
 
 (defn intersection
   ([a] a)
@@ -151,7 +161,9 @@
           (fn [[module & args]] (.intersection module args))))
   ([a b & more]
    (.then (js/Promise.all (list* manifold-module a b more))
-          (fn [[module & args]] (.intersection module args)))))
+          (fn [[module & args]]
+            (.setup module)
+            (.intersection module args)))))
 
 (comment
 

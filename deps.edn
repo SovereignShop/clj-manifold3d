@@ -1,0 +1,2 @@
+{:paths ["src/clj"]
+ :deps {manifold3d/manifold3d {:local/root "resources/jars/manifold3d-1.0-SNAPSHOT.jar"}}}
