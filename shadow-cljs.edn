@@ -1,0 +1,19 @@
+{:source-paths ["src/cljs" "src/js"]
+ :dependencies [[org.clojure/clojurescript "1.10.520"]]
+ :builds
+ {:app
+  {:target :browser
+   :output-dir "public/js"
+   :asset-path "/js"
+   :modules {:main {:init-fn clj-manifold3d.core/init}}
+   :js-options {:js-provider :closure
+                :foreign-libs [{:file "resources/public/js/manifold.js"
+                                :provides ["my.manifold3d"]
+                                :module-type :commonjs}]}
+   :compiler-options
+   {:pseudo-names true
+    :debug true}
+   :devtools
+   {:after-load my-app.core/after-load
+    :http-root "public"
+    :http-port 8080}}}}
