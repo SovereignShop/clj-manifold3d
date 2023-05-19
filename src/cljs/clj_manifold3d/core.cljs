@@ -1,8 +1,13 @@
 (ns clj-manifold3d.core
   (:require ["/clj_manifold3d/manifold" :as manifold3d]
-            [clj-manifold3d.vars :as vars]))
+            [clj-manifold3d.vars :as vars]
+            ["/clj_manifold3d/model_viewer" :as mv :refer [push_mv]]))
+
+
+(js/console.log push_mv)
 
 (def manifold-module ((.-default manifold3d)))
+
 
 (defn manifold
   ([]
@@ -154,6 +159,7 @@
             (.setup module)
             (.difference module args)))))
 
+
 (defn intersection
   ([a] a)
   ([a b]
@@ -165,7 +171,29 @@
             (.setup module)
             (.intersection module args)))))
 
+(defn hull
+  ([a b]
+   (.then (js/Promise.all #js [a b])
+          (fn [[a b]]
+            (.convexHull a b)))))
+
+
+(defn push-mv
+  [manifold]
+  (.then manifold (fn [man] (push_mv man))))
+
 (comment
+
+  (.then
+   (get-mesh
+    (hull (-> (cube 15 15 2)
+              (translate 10 10 0))
+          (-> (cube 20 20 2)
+              (translate 10 10 70))))
+   (fn [mesh]
+     (js/console.log mesh)))
+
+  (push-mv (cube 5 5 10))
 
   (def a (cylinder 4 10))
   (def b (sphere 10))

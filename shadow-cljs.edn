@@ -1,5 +1,5 @@
 {:source-paths ["src/cljs" "src/js"]
- :dependencies [[org.clojure/clojurescript "1.10.520"]]
+ :deps {:aliases [:cljs-dev]}
  :builds
  {:app
   {:target :browser

@@ -2,7 +2,9 @@
   (:import [manifold3d Manifold]
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon]
            [manifold3d.manifold CrossSection MeshIO ExportOptions]
-           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2]))
+           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2
+            DoubleVec3Vector IntegerVec3Vector]
+           [java.util Arrays]))
 
 (defn manifold
   ([] (Manifold.))
@@ -63,6 +65,12 @@
   ([cross-section circular-segments]
    (Manifold/Revolve cross-section circular-segments)))
 
+(defn hull
+  ([a b]
+   (.ConvexHull a b))
+  ([a b & more]
+   (reduce hull (.ConvexHull a b) more)))
+
 (defn manifold? [x]
   (instance? Manifold x))
 
@@ -101,11 +109,11 @@
 
 (defn translate [x v]
   (cond (manifold? x)
-        (.translate x (let [[x y z] v]
+        (.Translate x (let [[x y z] v]
                         (DoubleVec3. x y z)))
 
         (cross-section? x)
-        (.translate x (let [[x y] v]
+        (.Translate x (let [[x y] v]
                         (DoubleVec2. x y)))
 
         :else (throw (IllegalArgumentException. (str "Unknown type: " (type x))))))
@@ -133,12 +141,6 @@
 (defn get-mesh [manifold]
   (.GetMesh manifold))
 
-(defn export-mesh [filename mesh & {:keys [faceted]}]
-  (MeshIO/ExportMesh filename
-                     mesh
-                     (cond-> (ExportOptions.)
-                       faceted (.faceted true))))
-
 (defn cross-section
   ([polygon]
    (cross-section polygon :non-zero))
@@ -151,12 +153,19 @@
                     (throw (IllegalArgumentException. "fill-rule should be :non-zero, :positive or :negative"))))))
 
 (defn circle
-  ([r] (circle r 10))
-  ([r n] r))
+  ([r] (CrossSection/Circle r 0))
+  ([r circular-segments] (CrossSection/Circle r circular-segments)))
 
 (defn square
-  ([x y] (square x y true))
-  ([x y center?] (m/polygon)))
+  ([x y] (CrossSection/Square (DoubleVec2. x y) false))
+  ([x y center?]
+   (CrossSection/Square (DoubleVec2. x y) center?)))
+
+(defn export-mesh [filename mesh & {:keys [faceted]}]
+  (MeshIO/ExportMesh filename
+                     mesh
+                     (cond-> (ExportOptions.)
+                       faceted (.faceted true))))
 
 (defn import-mesh
   ([filename]
@@ -171,15 +180,33 @@
   (export-mesh
    "test.stl"
    (get-mesh
+    (difference
+     (extrude (circle 4 10) 100)
+     (extrude (circle 3 10) 100))))
+
+  (export-mesh
+   "test.stl"
+   (get-mesh
+    (hull
+     (cylinder 3 10)
+     (-> (cylinder 3 20)
+         (translate [0 0 70]))
+     (-> (cylinder 3 10)
+         (translate [0 0 140])))))
+
+  (export-mesh
+   "test.stl"
+   (get-mesh
     (union
      (cube [10 10 10])
      (cube [5 5 20])
      (cube [3 3 30]))))
 
   (export-mesh
-   "test.stl"
-   (get-mesh (extrude (difference (cross-section [[-10 -10] [10 -10] [10 10] [-10 10]])
-                                  (cross-section [[-5 -5] [5 -5] [5 5] [-5 5]]))
+   "test.glb"
+   (get-mesh (extrude (difference
+                       (cross-section [[-10 -10] [10 -10] [10 10] [-10 10]])
+                       (cross-section [[-5 -5] [5 -5] [5 5] [-5 5]]))
                       100))) 
 
   )
