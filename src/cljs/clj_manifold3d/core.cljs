@@ -1,13 +1,8 @@
 (ns clj-manifold3d.core
   (:require ["/clj_manifold3d/manifold" :as manifold3d]
-            [clj-manifold3d.vars :as vars]
-            ["/clj_manifold3d/model_viewer" :as mv :refer [push_mv]]))
+            ["/clj_manifold3d/model_viewer" :as mv :refer [createGLTF]]))
 
-
-(js/console.log push_mv)
-
-(def manifold-module ((.-default manifold3d)))
-
+(def manifold-module (manifold3d))
 
 (defn manifold
   ([]
@@ -98,6 +93,7 @@
             (.setup module)
             (.smooth module mesh sharpened-edges)))))
 
+
 (defn extrude
   ([polygons height]
    (extrude polygons height 0))
@@ -127,7 +123,7 @@
   ([manifolds]
    (.then manifold-module (fn [module] (.compose module manifolds)))))
 
-#_(defn level-set
+(defn level-set
   ([manifold sdf bounds edge-length]
    (level-set manifold sdf bounds edge-length 0))
   ([manifold sdf bounds edge-length level]
@@ -159,7 +155,6 @@
             (.setup module)
             (.difference module args)))))
 
-
 (defn intersection
   ([a] a)
   ([a b]
@@ -175,14 +170,31 @@
   ([a b]
    (.then (js/Promise.all #js [a b])
           (fn [[a b]]
-            (.convexHull a b)))))
+            (.convexHull a b))))
+  ([a b & more]
+   (reduce hull (hull a b) more)))
 
 
-(defn push-mv
-  [manifold]
-  (.then manifold (fn [man] (push_mv man))))
+(defn push-manifold [manifold]
+  (-> manifold
+      (rotate [-90, 0, 0])
+      (get-mesh)
+      (.then (fn [m] (createGLTF m)))))
+
 
 (comment
+
+
+  (push-manifold (cube 10 10 10))
+
+  (push-manifold
+   (hull (-> (cylinder 2 20))
+          (-> (sphere 5)
+              (translate 0 0 20))))
+
+  (js/console.log "wtf")
+
+  (println "wtf")
 
   (.then
    (get-mesh
@@ -193,7 +205,8 @@
    (fn [mesh]
      (js/console.log mesh)))
 
-  (push-mv (cube 5 5 10))
+
+  (push-mv (cube 5 5 10) )
 
   (def a (cylinder 4 10))
   (def b (sphere 10))

@@ -1,77 +1,54 @@
-//import { GLTFExporter } from './GLTFExporter';
-import { BufferGeometry, MeshStandardMaterial, Mesh, Float32BufferAttribute, Int16BufferAttribute } from 'three';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
+import { Document, WebIO, Accessor, Primitive, Node, Mesh, Scene } from '@gltf-transform/core';
 
-import { Document, NodeIO, Primitive, Accessor, Mesh } from '@gltf-transform/core'
+var objectURL = null;
 
+export function createGLTF(manifoldMesh) {
 
-export async function pushMesh(mesh) {
+  const vertProps = manifoldMesh.vertProperties;
+  const triVerts = manifoldMesh.triVerts;
 
-  let geometry = new BufferGeometry();
-  geometry.setAttribute('position', new  Float32BufferAttribute(mesh.vertProperties, 3));
-  geometry.setIndex(new Int16BufferAttribute(mesh.triVerts, 3));
+  const doc = new Document();
 
-  console.log(mesh.vertProperties);
-  console.log(mesh.triVerts);
+  const buffer = doc.createBuffer('default');
 
-  const material = new  MeshStandardMaterial({ color: 0x00ff00 });
-  const threeMesh = new  Mesh(geometry, material);
+  const positionAccessor = doc
+        .createAccessor('position')
+        .setBuffer(buffer)
+        .setArray(new Float32Array(vertProps))
+        .setType(Accessor.Type.VEC3);
 
-  console.log("geometry:", geometry.index.array);
+  const indexAccessor = doc
+        .createAccessor('index')
+        .setBuffer(buffer)
+        .setArray(new Uint32Array(triVerts))
+        .setType(Accessor.Type.SCALAR);
 
-  // Now let's export this mesh as a GLTF
-  const exporter = new GLTFExporter();
+  const prim = doc
+        .createPrimitive()
+        .setAttribute('position', positionAccessor)
+        .setIndices(indexAccessor);
 
-  exporter.parse(threeMesh, function (gltf) {
-    const modelViewerElement = document.querySelector('#myModelViewer');
+  const mesh = doc.createMesh('mesh').addPrimitive(prim);
 
-    const blob = new Blob([gltf], { type: 'model/gltf-binary' });
-    const url = URL.createObjectURL(blob);
+  const node = doc.createNode('node').setMesh(mesh);
 
+  const scene = doc.createScene('scene').addChild(node);
 
-    modelViewerElement.src = url;
-  }, function(error) {
-    console.log("error:", error);
-  }, { binary: true });
+  doc.getRoot().setDefaultScene(scene);
 
+  const io = new WebIO();
+  const gltf = io.writeBinary(doc);
+
+  gltf.then(gltfArrayBuffer => {
+
+    const blob = new Blob([gltfArrayBuffer], { type: 'model/gltf-binary' });
+    URL.revokeObjectURL(objectURL);
+    objectURL = URL.createObjectURL(blob);
+
+    const elem = document.querySelector('model-viewer')
+
+    // Now you can use 'objectURL' as the src for a <model-viewer> element
+    elem.src = objectURL;
+
+  });
 }
-
-
-
-
-//
-//export async function push_mv(manifold) {
-//  const mv = document.querySelector('model-viewer');
-//  let objectURL = null;
-//
-//  // From Z-up to Y-up (glTF)
-//  const mesh = manifold.rotate([-90, 0, 0]).getMesh();
-//
-//  for (const [i, id] of mesh.runOriginalID.entries()) {
-//    const indices = materialMap.get(id);
-//    indices.setArray(mesh.triVerts.subarray(mesh.runIndex[i], mesh.runIndex[i + 1]));
-//  }
-//
-//  const numVert = mesh.numVert;
-//  const numProp = mesh.numProp;
-//  const posArray = new Float32Array(3 * numVert);
-//  const uvArray = new Float32Array(2 * numVert);
-//  for (let i = 0; i < numVert; ++i) {
-//    posArray[3 * i] = mesh.vertProperties[numProp * i];
-//    posArray[3 * i + 1] = mesh.vertProperties[numProp * i + 1];
-//    posArray[3 * i + 2] = mesh.vertProperties[numProp * i + 2];
-//    uvArray[2 * i] = mesh.vertProperties[numProp * i + 3];
-//    uvArray[2 * i + 1] = mesh.vertProperties[numProp * i + 4];
-//  }
-//  position.setArray(posArray);
-//  uv.setArray(uvArray);
-//
-//  await texturesLoad;
-//
-//  const glb = await io.writeBinary(doc);
-//
-//  const blob = new Blob([glb], { type: 'application/octet-stream' });
-//  URL.revokeObjectURL(objectURL);
-//  objectURL = URL.createObjectURL(blob);
-//  mv.src = objectURL;
-//}

@@ -11,5 +11,8 @@
   "dependencies": {
     "@gltf-transform/core": "^3.3.1",
     "three": "^0.152.2"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^2.23.3"
   }
 }
