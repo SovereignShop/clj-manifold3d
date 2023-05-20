@@ -14,20 +14,36 @@
   (difference [x y])
   (intersection [x y]))
 
-(extend-protocol IFrame
-  CrossSection
-  (rotate [this rv] this)
-  (translate [this rv] this)
-  (transform [this tf] this))
-
 (extend-protocol ICSG
   Manifold
-  (union [this o])
-  (difference [this o])
-  (intersection [this o])
+  (union [this o]
+    (.add this o))
+  (difference [this o]
+    (.subtract this o))
+  (intersection [this o]
+    (.intersect this o))
 
   CrossSection
-  (union [this o])
-  (difference [this o])
-  (intersection [this o]))
+  (union [this o]
+    (.add this o))
+  (difference [this o]
+    (.subtract this o))
+  (intersection [this o]
+    (.intersection this o)))
 
+(extend-protocol IFrame
+  CrossSection
+  (rotate [this rv]
+    (.Rotate this (DoubleVec2. (nth rv 0) (nth rv 1))))
+  (translate [this tv]
+    (.Translate this (DoubleVec2. (nth tv 0) (nth tv 1))))
+  (transform [this tf]
+    (.Transform this tf))
+
+  Manifold
+  (rotate [this rv]
+    (.Rotate this (DoubleVec3. (nth rv 0) (nth rv 1) (nth rv 2))))
+  (translate [this v]
+    (.Translate this (DoubleVec3. (nth v 0) (nth v 1) (nth v 2))))
+  (transform [this tf]
+    (.Transform this tf)))

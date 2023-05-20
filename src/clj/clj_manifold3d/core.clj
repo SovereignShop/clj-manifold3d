@@ -1,10 +1,12 @@
 (ns clj-manifold3d.core
-  (:import [manifold3d Manifold]
-           [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon]
-           [manifold3d.manifold CrossSection MeshIO ExportOptions]
-           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2
-            DoubleVec3Vector IntegerVec3Vector]
-           [java.util Arrays]))
+  (:require
+   [clj-manifold3d.impl :as impl])
+  (:import
+   [manifold3d Manifold]
+   [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon]
+   [manifold3d.manifold CrossSection MeshIO ExportOptions]
+   [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2
+    DoubleVec3Vector IntegerVec3Vector]))
 
 (defn manifold
   ([] (Manifold.))
@@ -45,7 +47,7 @@
 
 (defn sphere
   ([radius]
-   (sphere radius))
+   (sphere radius 0))
   ([radius circular-segments]
    (Manifold/Sphere radius circular-segments)))
 
@@ -77,66 +79,32 @@
 (defn cross-section? [x]
   (instance? CrossSection x))
 
-(defn- check-csg-args [a b]
-  (when-not
-      (or (and (manifold? a) (manifold? b))
-          (and (cross-section? a) (cross-section? b)))
-    (throw (IllegalArgumentException. "A and B must be same type and must be either a Manifold or CrossSection"))))
-
 (defn union
   ([a] a)
-  ([a b]
-   (check-csg-args a b)
-   (.add a b))
+  ([a b] (impl/union a b))
   ([a b & more]
    (reduce union (union a b) more)))
 
 (defn difference
   ([a] a)
-  ([a b]
-   (check-csg-args a b)
-   (.subtract a b))
+  ([a b] (impl/difference a b))
   ([a b & more]
    (reduce difference (difference a b) more)))
 
 (defn intersection
   ([a] a)
-  ([a b]
-   (check-csg-args a b)
-   (.intersect a b))
+  ([a b] (impl/intersection a b))
   ([a b & more]
    (reduce intersection (intersection a b) more)))
 
-(defn translate [x v]
-  (cond (manifold? x)
-        (.Translate x (let [[x y z] v]
-                        (DoubleVec3. x y z)))
-
-        (cross-section? x)
-        (.Translate x (let [[x y] v]
-                        (DoubleVec2. x y)))
-
-        :else (throw (IllegalArgumentException. (str "Unknown type: " (type x))))))
+(defn translate [x tv]
+  (impl/translate x tv))
 
 (defn rotate [x rv]
-  (cond (manifold? x)
-        (.rotate x (let [[rx ry rz] rv]
-                     (DoubleVec3. rx ry rz)))
-
-        (cross-section? x)
-        (.rotate x (let [[rx ry] rv]
-                     (DoubleVec2. rx ry)))
-
-        :else (throw (IllegalArgumentException. (str "Unknown type: " (type x))))))
+  (impl/rotate x rv))
 
 (defn transform [x transform-matrix]
-  (cond (manifold? x)
-        (.transform ^Manifold x ^DoubleMat4x3 transform-matrix)
-
-        (cross-section? x)
-        (.transform ^CrossSection x ^DoubleMat3x2 transform-matrix)
-
-        :else (throw (IllegalArgumentException. (str "Agument must be a Manifold or CrossSection. Recieved: " (type x))))))
+  (impl/transform x transform-matrix))
 
 (defn get-mesh [manifold]
   (.GetMesh manifold))
@@ -161,7 +129,22 @@
   ([x y center?]
    (CrossSection/Square (DoubleVec2. x y) center?)))
 
-(defn export-mesh [filename mesh & {:keys [faceted]}]
+(defn offset
+  ([section delta]
+   (offset section delta :square))
+  ([section delta join-type]
+   (offset section delta join-type 2.0))
+  ([section delta join-type miter-limit]
+   (offset section delta join-type miter-limit 0.0))
+  ([section delta join-type miter-limit arc-tolerance]
+   (.Offset section delta
+            (case join-type
+              :square 0
+              :round 1
+              :miter 2)
+            miter-limit arc-tolerance)))
+
+(defn export-mesh [mesh filename  & {:keys [faceted]}]
   (MeshIO/ExportMesh filename
                      mesh
                      (cond-> (ExportOptions.)
@@ -178,32 +161,46 @@
   (manifold? (cylinder 100 10))
 
   (export-mesh
-   "test.stl"
+   (get-mesh
+    (extrude
+     (difference
+      (square 10 10 true)
+      (square 5 5 true))
+     30))
+   "test.stl")
+
+  (export-mesh
    (get-mesh
     (difference
      (extrude (circle 4 10) 100)
-     (extrude (circle 3 10) 100))))
+     (extrude (circle 3 10) 100)))
+   "test.stl")
 
   (export-mesh
-   "test.stl"
    (get-mesh
-    (hull
-     (cylinder 3 10)
-     (-> (cylinder 3 20)
-         (translate [0 0 70]))
-     (-> (cylinder 3 10)
-         (translate [0 0 140])))))
+    (difference
+     (hull
+      (cylinder 2 20)
+      (-> (sphere 5)
+          (translate [0 0 40])))
+     (cylinder 100 2)))
+   "test.stl")
 
   (export-mesh
-   "test.stl"
    (get-mesh
     (union
      (cube [10 10 10])
      (cube [5 5 20])
-     (cube [3 3 30]))))
+     (cube [3 3 30])))
+   "test.stl")
 
   (export-mesh
-   "test.glb"
+   "test.stl"
+   (get-mesh
+    ))
+
+  (export-mesh
+   "test.stl"
    (get-mesh (extrude (difference
                        (cross-section [[-10 -10] [10 -10] [10 10] [-10 10]])
                        (cross-section [[-5 -5] [5 -5] [5 5] [-5 5]]))
