@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@gltf-transform/core": "^3.3.1",
+    "@gltf-transform/core": "^3.0.0",
     "three": "^0.152.2"
   },
   "devDependencies": {

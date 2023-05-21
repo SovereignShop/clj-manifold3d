@@ -1,95 +1,75 @@
-import { Document, WebIO, Accessor, Primitive, Node, Mesh, Scene } from '@gltf-transform/core';
+import { Document, WebIO, Accessor, Primitive, Node, Mesh, Scene, Material } from '@gltf-transform/core';
 
-var objectURL = null;
+const io = new WebIO();
 
-export function downloadBlob(url, filename) {
+export function downloadURL(url, filename) {
 
-    // Create a link element
     const link = document.createElement('a');
 
-    // Set properties of link
-    link.href = url;
     link.download = filename;
+    link.href = url;
 
-    // This is necessary as link.click() does not work on the latest firefox
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
 
-    // Remove the link after download
-    setTimeout(function () {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-    }, 100);
 }
 
-export function createGLTF(manifoldMesh) {
+var objectURL = null;
+
+export async function createGLTF(manifold) {
+
+  const manifoldMesh = manifold.rotate([-90, 0, 0]).getMesh()
 
   const vertProps = manifoldMesh.vertProperties;
   const triVerts = manifoldMesh.triVerts;
 
   const doc = new Document();
-
-  const buffer = doc.createBuffer('default');
+  const buffer = doc.createBuffer();
 
   const material = doc.createMaterial('solidMaterial')
                       .setBaseColorFactor([1.0, 0.0, 0.0, 1.0]) // white color
+                      .setDoubleSided(true)
                       .setAlphaMode('OPAQUE'); // ensure opaque rendering
 
   const positionAccessor = doc
-        .createAccessor('position')
+        .createAccessor()
         .setBuffer(buffer)
-        .setArray(new Float32Array(vertProps))
-        .setType(Accessor.Type.VEC3);
+        .setType(Accessor.Type.VEC3)
+        .setArray(vertProps);
 
   const indexAccessor = doc
-        .createAccessor('index')
+        .createAccessor()
         .setBuffer(buffer)
-        .setArray(new Uint32Array(triVerts))
-        .setType(Accessor.Type.SCALAR);
+        .setType(Accessor.Type.SCALAR)
+        .setArray(triVerts);
 
   const prim = doc
         .createPrimitive()
-        .setAttribute('position', positionAccessor)
+        .setMaterial(material)
         .setIndices(indexAccessor)
-        .setMaterial(material);
-
-  // Specify color attribute.
-  let colors = [];
-  for (let i = 0; i < vertProps.length / 3; i++) {
-    colors.push(1.0, 0, 0);
-  }
-
-
-  prim.setAttribute('COLOR_0',
-                    doc.createAccessor()
-                       .setArray(new Float32Array(colors))
-                       .setType('VEC3'));
+        .setAttribute('POSITION', positionAccessor);
 
   const mesh = doc.createMesh('mesh').addPrimitive(prim);
 
-  const node = doc.createNode('node').setMesh(mesh);
+  const node = doc.createNode('result').setMesh(mesh);
 
   const scene = doc.createScene('scene').addChild(node);
 
   doc.getRoot().setDefaultScene(scene);
 
-  const io = new WebIO();
-  const gltf = io.writeBinary(doc);
+  const glb = await io.writeBinary(doc);
 
-  gltf.then(gltfArrayBuffer => {
+  const blob = new Blob([glb], {type: 'application/octet-stream'});
+  //downloadURL(URL.createObjectURL(blob), "test.glb")
 
-    const blob = new Blob([gltfArrayBuffer], { type: 'model/gltf-binary' });
-    URL.revokeObjectURL(objectURL);
-    objectURL = URL.createObjectURL(blob);
+  URL.revokeObjectURL(objectURL);
+  objectURL = URL.createObjectURL(blob);
 
-    // downloadBlob(objectURL, "model.glb")
+  // downloadURL(objectURL, "model.glb")
 
-    const elem = document.querySelector('model-viewer')
+  const elem = document.querySelector('model-viewer')
 
-    // Now you can use 'objectURL' as the src for a <model-viewer> element
-    elem.src = objectURL;
-
-  });
+  // Now you can use 'objectURL' as the src for a <model-viewer> element
+  elem.src = objectURL;
 }
-
