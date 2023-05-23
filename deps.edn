@@ -1,7 +1,15 @@
 {:paths ["src/clj"]
- :deps  {manifold3d/manifold3d {:local/root "resources/jars/manifold3d-1.0-SNAPSHOT.jar"}}
  :aliases
  {:cljs-dev
   {:extra-deps  {thheller/shadow-cljs {:mvn/version "2.22.9"}
                  funcool/promesa      {:mvn/version "10.0.594"}}
-   :extra-paths ["src/cljs" "src/js"]}}}
+   :extra-paths ["src/cljs" "src/js"]}
+
+  :clj-prod
+  {:extra-deps {org.clojars.cartesiantheatrics/manifold3d {:mvn/version "1.0-SNAPSHOT"}}
+   :extra-paths ["src/clj"]}
+
+  :deploy
+  {:extra-deps  {badigeon/badigeon {:mvn/version "0.0.13"}}
+   :extra-paths ["build"]
+   :main-opts   ["-m" "deploy"]}}}

@@ -1,16 +1,16 @@
 (ns clj-manifold3d.core
-  (:require
-   [clj-manifold3d.impl :as impl])
   (:import
    [manifold3d Manifold]
    [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon]
    [manifold3d.manifold CrossSection MeshIO ExportOptions]
    [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2
-    DoubleVec3Vector IntegerVec3Vector]))
+    DoubleVec3Vector IntegerVec3Vector])
+  (:require
+   [clj-manifold3d.impl :as impl]))
 
 (defn manifold
   ([] (Manifold.))
-  ([mesh] (Manifold. mesh)))
+  ([^DoubleMesh mesh] (Manifold. mesh)))
 
 (defn smoothness
   ([& {:keys [halfedge smoothness]}]
@@ -157,67 +157,3 @@
    (MeshIO/ImportMesh filename false))
   ([filename force-cleanup?]
    (MeshIO/ImportMesh filename force-cleanup?)))
-
-(comment
-
-  (manifold? (cylinder 100 10))
-
-  (try
-    (-> (revolve (-> (difference (square 10 10 true)
-                                 (square 8 8 true))
-                     (translate [10 0]))
-                 50
-                 (+ 90 180))
-        (get-mesh)
-        (export-mesh "test.glb"))
-
-    (catch Exception e
-      (println e)))
-
-  (export-mesh
-   (get-mesh
-    (extrude
-     (difference
-      (square 10 10 true)
-      (square 5 5 true))
-     30))
-   "test.stl")
-
-  (export-mesh
-   (get-mesh
-    (difference
-     (extrude (circle 4 10) 100)
-     (extrude (circle 3 10) 100)))
-   "test.stl")
-
-  (export-mesh
-   (get-mesh
-    (difference
-     (hull
-      (cylinder 2 20)
-      (-> (sphere 5)
-          (translate [0 0 40])))
-     (cylinder 100 2)))
-   "test.stl")
-
-  (export-mesh
-   (get-mesh
-    (union
-     (cube [10 10 10])
-     (cube [5 5 20])
-     (cube [3 3 30])))
-   "test.stl")
-
-  (export-mesh
-   "test.stl"
-   (get-mesh
-    ))
-
-  (export-mesh
-   "test.stl"
-   (get-mesh (extrude (difference
-                       (cross-section [[-10 -10] [10 -10] [10 10] [-10 10]])
-                       (cross-section [[-5 -5] [5 -5] [5 5] [-5 5]]))
-                      100))) 
-
-  )

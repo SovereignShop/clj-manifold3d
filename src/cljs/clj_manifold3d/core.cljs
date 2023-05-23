@@ -1,9 +1,6 @@
 (ns clj-manifold3d.core
   (:require
-   [promesa.core :as p]
-   ["/clj_manifold3d/manifold" :as manifold3d]
-   ["/clj_manifold3d/model_viewer" :as mv :refer [createGLTF exportGLB]]))
-
+   ["/clj_manifold3d/manifold" :as manifold3d]))
 
 (def ^:dynamic *manifold-module* (manifold3d))
 
@@ -40,7 +37,7 @@
                       (.setup module)
                       (.circle module radius circular-segments)))))
 
-(defn polygon
+(defn cross-section
   [pts]
   (update-manifold *manifold-module*
                    (fn [module]
@@ -103,7 +100,9 @@
    (update-manifold *manifold-module*
                     (fn [module]
                       (.setup module)
-                      (.cube module #js [x y z])))))
+                      (.cube module #js [x y z]))))
+  ([x y z center?]
+   (cube #js [x y z] center?)))
 
 (defn cylinder
   ([height radius-low]
@@ -222,70 +221,5 @@
   (p/let [mod *manifold-module*
           i x]
     (instance? mod.Manifold i)))
-
-(comment
-
-  (p/let [r (revolve (square 10 10 true) 0 45)]
-    (createGLTF r))
-
-  (.then (square 10 10 true)
-         (fn [c] (.then (cross-section? c)
-                        (fn [c] (println c)))))
-
-  (p/let [ret (manifold? (cube [10 10 10] true))]
-    (println ret))
-
-  (p/let [x (square 10 10 true)
-          ret (cross-section? x)]
-    (println ret))
-
-  (push-manifold (cube 10 10 40))
-
-  (push-manifold
-   (difference
-    (cube [10 10 30] true)
-    (-> (cube [4 4 100] true)
-        (translate 0 0 -4))))
-
-  (push-manifold
-   (difference
-    (hull (-> (cylinder 2 20 20 100))
-          (-> (sphere 5 100)
-              (translate 0 0 30)))
-    #_(-> (cylinder 100 8 8 100)
-          (translate 0 0 -1))))
-
-  (js/console.log "wtf")
-
-  (.then
-   (get-mesh
-    (hull (-> (cube 15 15 2)
-              (translate 10 10 0))
-          (-> (cube  20 2)
-              (translate 10 10 70))))
-   (fn [mesh]
-     (js/console.log mesh)))
-
-
-  (push-manifold (cube 5 5 10) )
-
-  (def a (cylinder 4 10))
-  (def b (sphere 10))
-  (def c (cube [3 4 5] true))
-
-
-  (p/let [ret (extrude [[5 -5] [5 5] [-5 5] [-5 -5]] 200)]
-    (createGLTF ret))
-
-  (difference [[5 -5] [5 5] [-5 5] [-5 -5]]
-              [[2 -2] [2 2] [-2 2] [-2 -2]])
-
-  (-> (union a b c)
-      (translate 4 5 3)
-      (get-mesh)
-      (.then (fn [mesh x] (js/console.log mesh)) ))
-
-  )
-
 
 (defn init [])
