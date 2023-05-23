@@ -1,5 +1,4 @@
-{:paths ["src/clj"]
- :aliases
+{:aliases
  {:cljs-dev
   {:extra-deps  {thheller/shadow-cljs {:mvn/version "2.22.9"}
                  funcool/promesa      {:mvn/version "10.0.594"}}
@@ -9,7 +8,9 @@
   {:extra-deps {org.clojars.cartesiantheatrics/manifold3d {:mvn/version "1.0-SNAPSHOT"}}
    :extra-paths ["src/clj"]}
 
-  :deploy
-  {:extra-deps  {badigeon/badigeon {:mvn/version "0.0.13"}}
-   :extra-paths ["build"]
-   :main-opts   ["-m" "deploy"]}}}
+  :clj-dev
+  {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}}
+   :extra-paths ["build"]}
+
+  :clj-deploy
+  {:main-opts   ["-m" "deploy"]}}}

@@ -33,6 +33,8 @@
   ([xyz]
    (cube xyz false))
   ([[x y z] center?]
+   (Manifold/Cube (DoubleVec3. x y z) center?))
+  ([x y z center?]
    (Manifold/Cube (DoubleVec3. x y z) center?)))
 
 (defn cylinder
