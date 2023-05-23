@@ -4,6 +4,7 @@
    ["/clj_manifold3d/manifold" :as manifold3d]
    ["/clj_manifold3d/model_viewer" :as mv :refer [createGLTF exportGLB]]))
 
+
 (def ^:dynamic *manifold-module* (manifold3d))
 
 (defn promise? [x]
@@ -45,6 +46,16 @@
                    (fn [module]
                      (.setup module)
                      (module.CrossSection. (clj->js pts)))))
+
+(defn revolve
+  ([section]
+   (revolve section 0))
+  ([section circular-segments]
+   (revolve section circular-segments 360))
+  ([section circular-segments degrees]
+   (.then (js/Promise.all #js [*manifold-module* section])
+          (fn [[module cross-section]]
+            (.revolve module cross-section circular-segments degrees)))))
 
 (defn warp
   [manifold func]
@@ -214,7 +225,7 @@
 
 (comment
 
-  (p/let [r (difference (sphere 10 150) (cylinder 50 3 3 150))]
+  (p/let [r (revolve (square 10 10 true) 0 45)]
     (createGLTF r))
 
   (.then (square 10 10 true)

@@ -65,7 +65,9 @@
   ([cross-section]
    (revolve cross-section 0))
   ([cross-section circular-segments]
-   (Manifold/Revolve cross-section circular-segments)))
+   (Manifold/Revolve cross-section circular-segments))
+  ([cross-section circular-segments degrees]
+   (Manifold/Revolve cross-section circular-segments degrees)))
 
 (defn hull
   ([a b]
@@ -159,6 +161,18 @@
 (comment
 
   (manifold? (cylinder 100 10))
+
+  (try
+    (-> (revolve (-> (difference (square 10 10 true)
+                                 (square 8 8 true))
+                     (translate [10 0]))
+                 50
+                 (+ 90 180))
+        (get-mesh)
+        (export-mesh "test.glb"))
+
+    (catch Exception e
+      (println e)))
 
   (export-mesh
    (get-mesh
