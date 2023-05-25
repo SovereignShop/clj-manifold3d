@@ -1,9 +1,8 @@
-
-[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.cartesiantheatrics/clj-manifold3d.svg?include_prereleases)](https://clojars.org/org.clojars.cartesiantheatrics/clj-manifold3d)
+[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.cartesiantheatrics/clj-manifold3d.svg?include_prereleases)]
 
 # clj-manifold3d
 
-This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. It is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold
+This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. It is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold. It currently only includes Linux builds of Manifold. I intend to support other environments soon.
 
 It implements most of the library functionality, plus extends it to support convex hulls (2D and 3D), partial
 revolutions, and polyhedrons. It provides a full superset of OpenSCAD functionality, making migration as easy as possible
