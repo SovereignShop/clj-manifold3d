@@ -349,7 +349,9 @@
    #?(:clj (let [[x y z] normal]
              (.trimByPlane ^Manifold manifold (DoubleVec3. x y z) origin-offset))
       :cljs (let [[x y z] normal]
-              (.trimByPlane manifold #js [x y z] origin-offset)))))
+              (update-manifold manifold
+                               (fn [man]
+                                 (.trimByPlane man #js [x y z] origin-offset)))))))
 
 #?(:clj
    (defn split-by-plane
@@ -367,8 +369,8 @@
      "Cuts `manifold` with the `cutter-manifold`. Returns vector of intersection and difference.
   More efficient than doing each operation separately. CLJ only."
      ([manifold cutter-manifold]
-      #?(:clj (let [ret (.split ^Manifold manifold cutter-manifold)]
-                [(.first ret) (.second ret)])))))
+      (let [ret (.split ^Manifold manifold cutter-manifold)]
+        [(.first ret) (.second ret)]))))
 
 #?(:clj
    (defn frame
