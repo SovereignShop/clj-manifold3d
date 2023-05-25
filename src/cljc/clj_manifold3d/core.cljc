@@ -318,11 +318,11 @@
                      (.intersection module args))))))
 
 (defn scale
-  ([manifold v]
-   #?(:clj (.Scale ^Manifold manifold v)
+  ([manifold [x y z]]
+   #?(:clj (.Scale ^Manifold manifold (DoubleVec3. x y z))
       :cljs (.then manifold
                    (fn [man]
-                     (.scale man (clj->js v)))))))
+                     (.scale man #js [x y z]))))))
 
 (defn bounding-box
   ([manifold]
