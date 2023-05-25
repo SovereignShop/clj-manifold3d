@@ -48,7 +48,7 @@
               (.put buf a)
               (.put buf b)
               (.put buf c))
-            buf)))
+            (.flip buf))))
 
 #?(:clj (defn- double-vec4-sequence-to-native-double-buffer
           "Maps a sequence of 4-sequences to a flat native-ordered row-major double buffer."
@@ -61,7 +61,7 @@
               (.put buf b)
               (.put buf c)
               (.put buf d))
-            buf)))
+            (.flip buf))))
 
 #?(:clj (defn- integer-vec3-sequence-to-native-integer-buffer
           "Maps a sequence of 3-sequences to a flat native-ordered row-major integer buffer."
@@ -73,7 +73,7 @@
               (.put buf a)
               (.put buf b)
               (.put buf c))
-            buf)))
+            (.flip buf))))
 
 #?(:clj (defn mesh
           "Convenience function to create a mesh from sequences as efficiently as reasonably possible in Clojure. :vert-pos and :tri-verts should be included together. Others will be computed later if not provided.
@@ -90,7 +90,7 @@
   "Creates a `Manifold` ."
   ([] #?(:clj (Manifold.)))
   ([mesh]
-   #?(:clj ^Manifold (Manifold. ^DoubleMesh mesh)
+   #?(:clj (Manifold. ^DoubleMesh mesh)
       :cljs (update-manifold *manifold-module*
                              (fn [mod]
                                (.setup mod)
@@ -104,30 +104,52 @@
 
 #?(:clj
    (defn polyhedron
-     "Creates a manifold from a polyhedron. Each face is a vector of coplanar vertex indices corresponding to a face.
-  Faces can include more then 3 vertices. Face indices must be ordered CCW so the normal points outward by the right-hand rule.
+     "creates a manifold from a polyhedron. each face is a vector of coplanar vertex indices corresponding to a face.
+  faces can include more then 3 vertices. face indices must be ordered ccw so the normal points outward by the right-hand rule.
 
-  This is included primarily to ease migration from OpenSCAD. It goes to some lengths to try to minimize JNI calls. Generally it
-  is significantly faster to construct tri-verts directly, but it shouldn't be a big issue in most cases."
+  this is included primarily to ease migration from openscad. it is significantly faster to construct tri-verts
+  directly."
      [verts faces]
      (let [^DoubleBuffer vert-buf (double-vec3-sequence-to-native-double-buffer verts)
            face-counts (map count faces)
+           n-face-verts (apply + face-counts)
            ^IntBuffer
-           face-buf (let [buf (-> (ByteBuffer/allocateDirect (* (apply + face-counts) 3 Integer/BYTES))
+           face-buf (let [buf (-> (ByteBuffer/allocateDirect (* n-face-verts Integer/BYTES))
                                   (.order (ByteOrder/nativeOrder))
                                   (.asIntBuffer))]
                       (doseq [c faces
                               ^int x c]
                         (.put buf x))
-                      buf)
+                      (.flip buf))
            ^IntBuffer
-           face-lengths (let [buf (-> (ByteBuffer/allocateDirect (* (apply + face-counts) 3 Integer/BYTES))
+           face-lengths (let [buf (-> (ByteBuffer/allocateDirect (* (count faces) Integer/BYTES))
                                       (.order (ByteOrder/nativeOrder))
                                       (.asIntBuffer))]
                           (doseq [^int c face-counts]
                             (.put buf c))
-                          buf)]
-       (MeshUtils/Polyhedron vert-buf (count verts) face-buf face-lengths (count faces)))))
+                          (.flip buf))]
+       (MeshUtils/PolyhedronFromBuffers vert-buf (count verts) face-buf face-lengths (count faces)))))
+
+(comment
+
+  (-> (polyhedron [[0 0 0]
+                   [5 0 0]
+                   [5 5 0]
+                   [0 5 0]
+                   [0 0 5]
+                   [5 0 5]
+                   [5 5 5]
+                   [0 5 5]]
+                  [[0 3 2 1]
+                   [4 5 6 7]
+                   [0 1 5 4]
+                   [1 2 6 5]
+                   [2 3 7 6]
+                   [3 0 4 7]])
+      (get-properties)
+      #_(export-mesh "test.glb"))
+
+  )
 
 (defn cube
   "Creates a cube with specified dimensions.
@@ -329,7 +351,10 @@
                                (.boundingBox man))))))
 
 #?(:clj (defn get-properties
-          ([manifold] (.GetProperties ^Manifold manifold))))
+          ([manifold]
+           (let [props (.GetProperties ^Manifold manifold)]
+             {:surface-area (.surfaceArea props)
+              :volume (.volume props)}))))
 
 #_(keys (.volume (get-properties (cube 10 10 10 true))))
 
