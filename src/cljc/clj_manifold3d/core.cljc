@@ -104,11 +104,13 @@
 
 #?(:clj
    (defn polyhedron
-     "creates a manifold from a polyhedron. each face is a vector of coplanar vertex indices corresponding to a face.
-  faces can include more then 3 vertices. face indices must be ordered ccw so the normal points outward by the right-hand rule.
+     "Creates a manifold from a polyhedron. `verts` is a sequence of [x y z]
+  vertices. `faces` is a sequence of sequences of indices into `verts`
+  corresponding to a face. Faces can include more then 3 vertices. Face vertices
+  must be coplanar and ordered CCW so the normal points outward by the right-hand rule.
 
-  this is included primarily to ease migration from openscad. it is significantly faster to construct tri-verts
-  directly."
+  Note it is significantly faster to construct a mesh directly with triangular
+  faces."
      [verts faces]
      (let [^DoubleBuffer vert-buf (double-vec3-sequence-to-native-double-buffer verts)
            face-counts (map count faces)
@@ -129,27 +131,6 @@
                             (.put buf c))
                           (.flip buf))]
        (MeshUtils/PolyhedronFromBuffers vert-buf (count verts) face-buf face-lengths (count faces)))))
-
-(comment
-
-  (-> (polyhedron [[0 0 0]
-                   [5 0 0]
-                   [5 5 0]
-                   [0 5 0]
-                   [0 0 5]
-                   [5 0 5]
-                   [5 5 5]
-                   [0 5 5]]
-                  [[0 3 2 1]
-                   [4 5 6 7]
-                   [0 1 5 4]
-                   [1 2 6 5]
-                   [2 3 7 6]
-                   [3 0 4 7]])
-      (get-properties)
-      #_(export-mesh "test.glb"))
-
-  )
 
 (defn cube
   "Creates a cube with specified dimensions.
