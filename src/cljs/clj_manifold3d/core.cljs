@@ -38,7 +38,7 @@
                       (.circle module radius circular-segments)))))
 
 (defn cross-section
-  [pts]
+  [pts fill-rule]
   (update-manifold *manifold-module*
                    (fn [module]
                      (.setup module)
@@ -59,12 +59,12 @@
   (update-manifold manifold (fn [man] (.warp man func))))
 
 (defn translate
-  [obj & vec]
-  (update-manifold obj (fn [o] (.translate o (clj->js vec)))))
+  [x & vec]
+  (update-manifold x (fn [o] (.translate o (clj->js vec)))))
 
 (defn rotate
-  [obj vec]
-  (update-manifold obj (fn [o] (.rotate o (clj->js vec)))))
+  [x vec]
+  (update-manifold x (fn [o] (.rotate o (clj->js vec)))))
 
 (defn scale
   [manifold vec]
@@ -91,6 +91,8 @@
   (update-manifold manifold (fn [man] (.getCurvature man))))
 
 (defn cube
+  ([xyz]
+   (cube xyz false))
   ([xyz center?]
    (update-manifold *manifold-module*
                     (fn [module]
@@ -107,15 +109,15 @@
 (defn cylinder
   ([height radius-low]
    (cylinder height radius-low -1))
-  ([height radius-low radius-height]
-   (cylinder height radius-low radius-height 0))
+  ([height radius-low radius-heigh]
+   (cylinder height radius-low radius-heigh 0))
   ([height radius-low radius-high circular-segments]
    (cylinder height radius-low radius-high circular-segments false))
-  ([height radius-low radius-height circular-segments center]
+  ([height radius-low radius-heigh circular-segments center]
    (update-manifold  *manifold-module*
                      (fn [module]
                        (.setup module)
-                       (.cylinder module height radius-low radius-height circular-segments center)))))
+                       (.cylinder module height radius-low radius-heigh circular-segments center)))))
 
 (defn sphere
   ([radius]
@@ -133,7 +135,7 @@
    (update-manifold *manifold-module*
                     (fn [module]
                       (.setup module)
-                      (.smooth module mesh sharpened-edges)))))
+                      (.smooth module mesh (clj->js sharpened-edges))))))
 
 (defn offset
   ([section delta]

@@ -1,16 +1,18 @@
 (ns clj-manifold3d.core
   (:import
    [manifold3d Manifold]
-   [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon]
+   [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon Properties]
+   [manifold3d.glm MatrixTransforms]
    [manifold3d.manifold CrossSection MeshIO ExportOptions]
    [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2
     DoubleVec3Vector IntegerVec3Vector])
   (:require
-   [clj-manifold3d.impl :as impl]))
+   [clj-manifold3d.impl :as impl]
+   [clojure.java.data :as j]))
 
 (defn manifold
   ([] (Manifold.))
-  ([^DoubleMesh mesh] (Manifold. mesh)))
+  ([mesh] (Manifold. mesh)))
 
 (defn smoothness
   ([& {:keys [halfedge smoothness]}]
@@ -59,9 +61,9 @@
   ([cross-section height n-divisions]
    (extrude cross-section height n-divisions 0.0))
   ([cross-section height n-divisions twist-degrees]
-   (extrude cross-section height n-divisions twist-degrees (DoubleVec2. 1.0 1.0)))
+   (extrude cross-section height n-divisions twist-degrees [1.0 1.0]))
   ([cross-section height n-divisions twist-degrees scale-top]
-   (Manifold/Extrude cross-section height n-divisions twist-degrees scale-top)))
+   (Manifold/Extrude cross-section height n-divisions twist-degrees (DoubleVec2. (nth scale-top 0) (nth scale-top 1)))))
 
 (defn revolve
   ([cross-section]
@@ -73,9 +75,9 @@
 
 (defn hull
   ([a b]
-   (.ConvexHull a b))
+   (.convexHull a b))
   ([a b & more]
-   (reduce hull (.ConvexHull a b) more)))
+   (reduce hull (.convexHull a b) more)))
 
 (defn manifold? [x]
   (instance? Manifold x))
@@ -124,6 +126,21 @@
                     :negative 2
                     (throw (IllegalArgumentException. "fill-rule should be :non-zero, :positive or :negative"))))))
 
+(defn matrix
+  ([]
+   (DoubleMat4x3.))
+  ([v]
+   (DoubleMat4x3. v))
+  ([rx ry rz tr]
+   (DoubleMat4x3. (DoubleVec3. (nth rx 0) (nth rx 1) (nth rx 2))
+                  (DoubleVec3. (nth ry 0) (nth ry 1) (nth ry 2))
+                  (DoubleVec3. (nth rz 0) (nth rz 1) (nth rz 2))
+                  (DoubleVec3. (nth tr 0) (nth tr 1) (nth tr 2))))
+  ([c0 c1 c2 c3
+    c4 c5 c6 c7
+    c8 c9 c10 c11]
+   (DoubleMat4x3. c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11)))
+
 (defn circle
   ([r] (CrossSection/Circle r 0))
   ([r circular-segments] (CrossSection/Circle r circular-segments)))
@@ -148,6 +165,31 @@
               :miter 2)
             miter-limit arc-tolerance)))
 
+(defn trim-by-plane
+  "Subtracts the halfspace defined by the `normal` offset by `origin-offset` in the direction of the normal."
+  ([manifold normal]
+   (trim-by-plane manifold normal 0.0))
+  ([manifold normal origin-offset]
+   (let [[x y z] normal]
+     (.trimByPlane manifold (DoubleVec3. x y z) origin-offset))))
+
+(defn split-by-plane
+  "Splits manifold two using the plane defined by the `normal` offset by `origin-offset` in
+  the direction of the normal."
+  ([manifold normal]
+   (split-by-plane manifold normal 0.0))
+  ([manifold normal origin-offset]
+   (let [[x y z] normal
+         pair (.splitByPlane manifold (DoubleVec3. x y z) origin-offset)]
+     [(.first pair) (.second pair)])))
+
+(defn split
+  "Cuts `manifold` with the `cutter-manifold`. Returns vector of intersection and difference.
+  More efficient than doing each separately."
+  ([manifold cutter-manifold]
+   (let [ret (.split manifold cutter-manifold)]
+     [(.first ret) (.second ret)])))
+
 (defn export-mesh [mesh filename  & {:keys [faceted]}]
   (MeshIO/ExportMesh filename
                      mesh
@@ -159,3 +201,9 @@
    (MeshIO/ImportMesh filename false))
   ([filename force-cleanup?]
    (MeshIO/ImportMesh filename force-cleanup?)))
+
+
+#_(-> (cube [10 10 10] true)
+    (split-by-plane [1 0 -1])
+    #_(get-mesh)
+    #_(export-mesh "test.glb"))
