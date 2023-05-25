@@ -11,7 +11,7 @@
 
   I've also decided to prefer radians to degrees across the API, even though Manifold uses degrees
   and degrees actually have generally better performance and accuracy than radians.
-  But most exsting OpenSCAD code uses radians,"
+  But most exsting OpenSCAD code uses radians."
   #?(:clj (:import
            [manifold3d Manifold]
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon]
@@ -245,7 +245,9 @@
 (defn hull
   "Takes two or more `Manifolds` or `CrossSections` and returns their convex hull."
   ([a b]
-   #?(:clj ^Manifold (.ConvexHull ^Manifold a ^Manifold b)
+   #?(:clj (cond (manifold? a) ^Manifold (.ConvexHull ^Manifold a ^Manifold b)
+                 (cross-section? a) ^CrossSection (.convexHull ^CrossSection a ^CrossSection b)
+                 :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
       :cljs (.then (js/Promise.all #js [a b])
                    (fn [[a b]]
                      (.convexHull a b)))))

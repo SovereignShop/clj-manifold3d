@@ -21,7 +21,7 @@
     (assert (re-find #"^\d.\d.\d-SNAPSHOT$" version))
     (jar/jar 'org.clojars.cartesiantheatrics/clj-manifold3d {:mvn/version version}
              {:out-path                (format "target/clj-manifold3d-%s.jar" version)
-              :paths                   ["src/clj"]
+              :paths                   ["src/clj" "src/cljc"]
               :deps                    deps
               :mvn/repos               '{"clojars" {:url "https://repo.clojars.org/"}}
               :exclusion-predicate     jar/default-exclusion-predicate
