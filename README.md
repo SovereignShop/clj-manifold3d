@@ -1,3 +1,6 @@
+
+[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.cartesiantheatrics/clj-manifold3d.svg?include_prereleases)](https://clojars.org/org.clojars.cartesiantheatrics/clj-manifold3d)
+
 # clj-manifold3d
 
 This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. It is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold
