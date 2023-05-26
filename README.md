@@ -5,10 +5,10 @@
 
 This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. It is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold. It currently only includes Linux builds of Manifold. I intend to support other environments soon.
 
-It implements most of the library functionality, plus extends it to support convex hulls (2D and 3D), partial
-revolutions, and polyhedrons. It provides a full superset of OpenSCAD functionality, making migration as easy as possible
+It implements most of the library functionality, plus extends it to support native convex hulls (2D and 3D), partial
+revolutions, and polyhedrons. It provides a full superset of OpenSCAD functionality, making migration as easy as possible.
 
-Manifold represents a dramatic advance in the state-of-the-art in the open-source programmatic CAD. It has been adopted by most major CAD kernels.
+Manifold represents a dramatic advance in the state-of-the-art of open-source programmatic CAD. It has been adopted by most major CAD kernels.
 
 The library aspires to achieve code compatibility between Clojure and ClojureScript so that models
 build in the more friendly Java environment can be shared and distributed in the javascript

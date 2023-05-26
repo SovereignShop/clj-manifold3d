@@ -242,18 +242,6 @@
                    (fn [[module cross-section]]
                      (.revolve module cross-section circular-segments degrees))))))
 
-(defn hull
-  "Takes two or more `Manifolds` or `CrossSections` and returns their convex hull."
-  ([a b]
-   #?(:clj (cond (manifold? a) ^Manifold (.ConvexHull ^Manifold a ^Manifold b)
-                 (cross-section? a) ^CrossSection (.convexHull ^CrossSection a ^CrossSection b)
-                 :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
-      :cljs (.then (js/Promise.all #js [a b])
-                   (fn [[a b]]
-                     (.convexHull a b)))))
-  ([a b & more]
-   (reduce hull (hull a b) more)))
-
 #?(:cljs
    (defn warp
      "Returns a new `Manifold` with `warp` function applied to each vertex. CLJS only."
@@ -275,6 +263,18 @@
      :cljs (p/let [mod *manifold-module*
                    i x]
              (instance? mod.CrossSection i))))
+
+(defn hull
+  "Takes two or more `Manifolds` or `CrossSections` and returns their convex hull."
+  ([a b]
+   #?(:clj (cond (manifold? a) ^Manifold (.ConvexHull ^Manifold a ^Manifold b)
+                 (cross-section? a) ^CrossSection (.convexHull ^CrossSection a ^CrossSection b)
+                 :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
+      :cljs (.then (js/Promise.all #js [a b])
+                   (fn [[a b]]
+                     (.convexHull a b)))))
+  ([a b & more]
+   (reduce hull (hull a b) more)))
 
 (defn union
   "Returns the union of two or more `Manifold`s or `CrossSections`."
