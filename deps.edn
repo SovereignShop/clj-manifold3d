@@ -12,7 +12,7 @@
 
   :clj-dev
   {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}}
-   :extra-paths ["build" "test/cljc"]}
+   :extra-paths ["build" "test/cljc" "examples"]}
 
   :clj-deploy
   {:main-opts   ["-m" "deploy"]}}}
