@@ -1,5 +1,5 @@
 (ns clj-manifold3d.core
-  "This library defines a thin wrapper over Manifold for clojure and clojurescript.
+  "This library defines a wrapper over Manifold for clojure and clojurescript.
   Refer to the original library for complete documentation.
 
   This library aspires to achieve code capatibility between Clojure and ClojureScript so that models
@@ -7,24 +7,20 @@
   environment. However, there are challenges in the way the Manifold js library is provided
   as a promise. To (mostly) support this, this library elects to accept promises at the API level.
   Working with promises can be pretty annoying, especially without a type system that supports
-  them well. For this reason, the CLJS API generally also works on non-promise objects.
-
-  I've also decided to prefer radians to degrees across the API, even though Manifold uses degrees
-  and degrees actually have generally better performance and accuracy than radians.
-  But most exsting OpenSCAD code uses radians."
+  them well. For this reason, the CLJS API generally also works on non-promise objects."
   #?(:clj (:import
-           [manifold3d Manifold]
-           [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon]
-           [manifold3d.manifold CrossSection MeshIO ExportOptions]
-           [manifold3d MeshUtils]
-           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2
-            DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector MatrixTransforms]
+           [manifold3d Manifold MeshUtils ManifoldVector]
+           [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon OpType]
+           [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
+           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector
+            DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 MatrixTransforms DoubleVec4]
            [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
   #?(:clj
      (:require
       [clj-manifold3d.impl :as impl])
      :cljs
      (:require
+      [promesa.core :as p]
       ["/clj_manifold3d/manifold" :as manifold3d])))
 
 #?(:cljs
@@ -36,55 +32,87 @@
        (.then manifold f)
        (f manifold))))
 
-#_(set! *warn-on-reflection* true)
+#?(:clj
+   (defn- double-vec3-sequence-to-native-double-buffer
+     "Maps a sequence of 3-sequences to a flat row-major double buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Double/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asDoubleBuffer))]
+       (doseq [[^double a ^double b ^double c] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c))
+       (.flip buf))))
 
-#?(:clj (defn- double-vec3-sequence-to-native-double-buffer
-          "Maps a sequence of 3-sequences to a flat row-major double buffer."
-          [col]
-          (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Double/BYTES))
-                        (.order (ByteOrder/nativeOrder))
-                        (.asDoubleBuffer))]
-            (doseq [[^double a ^double b ^double c] col]
-              (.put buf a)
-              (.put buf b)
-              (.put buf c))
-            (.flip buf))))
+#?(:clj
+   (defn- double-vec4-sequence-to-native-double-buffer
+     "Maps a sequence of 4-sequences to a flat native-ordered row-major double buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 4 Double/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asDoubleBuffer))]
+       (doseq [[^double a ^double b ^double c ^double d] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c)
+         (.put buf d))
+       (.flip buf))))
 
-#?(:clj (defn- double-vec4-sequence-to-native-double-buffer
-          "Maps a sequence of 4-sequences to a flat native-ordered row-major double buffer."
-          [col]
-          (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 4 Double/BYTES))
-                        (.order (ByteOrder/nativeOrder))
-                        (.asDoubleBuffer))]
-            (doseq [[^double a ^double b ^double c ^double d] col]
-              (.put buf a)
-              (.put buf b)
-              (.put buf c)
-              (.put buf d))
-            (.flip buf))))
+#?(:clj
+   (defn- integer-vec3-sequence-to-native-integer-buffer
+     "Maps a sequence of 3-sequences to a flat native-ordered row-major integer buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Integer/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asIntBuffer))]
+       (doseq [[^int a ^int b ^int c] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c))
+       (.flip buf))))
 
-#?(:clj (defn- integer-vec3-sequence-to-native-integer-buffer
-          "Maps a sequence of 3-sequences to a flat native-ordered row-major integer buffer."
-          [col]
-          (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Integer/BYTES))
-                        (.order (ByteOrder/nativeOrder))
-                        (.asIntBuffer))]
-            (doseq [[^int a ^int b ^int c] col]
-              (.put buf a)
-              (.put buf b)
-              (.put buf c))
-            (.flip buf))))
+#?(:clj
+   (defn- integer-vec4-sequence-to-native-integer-buffer
+     "Maps a sequence of 3-sequences to a flat native-ordered row-major integer buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Integer/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asIntBuffer))]
+       (doseq [[^int a ^int b ^int c ^int d] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c)
+         (.put buf d))
+       (.flip buf))))
 
-#?(:clj (defn mesh
-          "Convenience function to create a mesh from sequences as efficiently as reasonably possible in Clojure. :vert-pos and :tri-verts should be included together. Others will be computed later if not provided.
-  For maximum java performance use FromBuffer constructors directly and use natively ordered structure that can provide java.nio buffers. If necessary, write meshing alorthims in c++ using
+(defn manifold?
+  "Returns true if `x` is a `Manifold`."
+  [x]
+  #?(:clj (instance? Manifold x)
+     :cljs (p/let [mod *manifold-module*
+                   i x]
+             (instance? mod.Manifold i))))
+
+(defn cross-section?
+  "Returns true if `x` is a `CrossSection`."
+  [x]
+  #?(:clj (instance? CrossSection x)
+     :cljs (p/let [mod *manifold-module*
+                   i x]
+             (instance? mod.CrossSection i))))
+
+#?(:clj
+   (defn mesh
+     "Convenience function to create a mesh from sequences as efficiently as reasonably possible in Clojure. :vert-pos and :tri-verts should be included together. Others will be computed later if not provided.
+  For maximum java performance use FromBuffer constructors directly and use natively ordered structures that can provide java.nio buffers. If necessary, write meshing alorthims in c++ using
   GLM directly and bind to them."
-          [& {:keys [tri-verts vert-pos vert-normal halfedge-tangent]}]
-          (cond-> (DoubleMesh.)
-            tri-verts (doto (.triVerts (IntegerVec3Vector/FromBuffer (integer-vec3-sequence-to-native-integer-buffer tri-verts))))
-            vert-pos (doto (.vertPos (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-pos))))
-            vert-normal (doto (.vertNormal (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-normal))))
-            halfedge-tangent (doto (.halfedgeTangent (DoubleVec4Vector/FromBuffer (double-vec4-sequence-to-native-double-buffer halfedge-tangent)))))))
+     [& {:keys [tri-verts vert-pos vert-normal halfedge-tangent]}]
+     (cond-> (DoubleMesh.)
+       tri-verts (doto (.triVerts (IntegerVec3Vector/FromBuffer (integer-vec3-sequence-to-native-integer-buffer tri-verts))))
+       vert-pos (doto (.vertPos (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-pos))))
+       vert-normal (doto (.vertNormal (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-normal))))
+       halfedge-tangent (doto (.halfedgeTangent (DoubleVec4Vector/FromBuffer (double-vec4-sequence-to-native-double-buffer halfedge-tangent)))))))
 
 (defn manifold
   "Creates a `Manifold` ."
@@ -95,6 +123,11 @@
                              (fn [mod]
                                (.setup mod)
                                (mod.Manifold. (mod.Mesh. (clj->js mesh))))))))
+#?(:clj
+   (defn empty? [x]
+     (cond (manifold? x) (.isEmpty ^Manifold x)
+           (cross-section? x) (.isEmpty ^CrossSection x)
+           :else (throw (IllegalArgumentException. (str "Should be Manifold or CrossSection. Recieved: " (type x)))))))
 
 #?(:clj
    (defn tetrahedron
@@ -224,6 +257,20 @@
                                (.setup module)
                                (.smooth module mesh (clj->js sharpened-edges)))))))
 
+(defn mirror
+  "Mirrors manifold over the plane desribed by the normal."
+  ([manifold normal]
+   #?(:clj (.mirror ^Manifold manifold (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
+      :cljs (update-manifold manifold
+                             (fn [man]
+                               (.mirror man (clj->js normal)))))))
+
+#?(:clj
+   (defn refine
+     "partitions every edge of the Manifold into `n` edges of equal length. CLJ only."
+     ([manifold n]
+      (.refine ^Manifold manifold n))))
+
 (defn revolve
   "Revolve a `CrossSection` around the y-axis to create a `Manifold`.
 
@@ -248,26 +295,10 @@
      [manifold func]
      (update-manifold manifold (fn [man] (.warp man func)))))
 
-(defn manifold?
-  "Returns true if `x` is a `Manifold`."
-  [x]
-  #?(:clj (instance? Manifold x)
-     :cljs ((p/let [mod *manifold-module*
-                    i x]
-              (instance? mod.Manifold i)))))
-
-(defn cross-section?
-  "Returns true if `x` is a `CrossSection`."
-  [x]
-  #?(:clj (instance? CrossSection x)
-     :cljs (p/let [mod *manifold-module*
-                   i x]
-             (instance? mod.CrossSection i))))
-
 (defn hull
-  "Takes two or more `Manifolds` or `CrossSections` and returns their convex hull."
+  "Takes two or more Manifolds or CrossSection and returns their convex hull."
   ([a b]
-   #?(:clj (cond (manifold? a) ^Manifold (.ConvexHull ^Manifold a ^Manifold b)
+   #?(:clj (cond (manifold? a) ^Manifold (.convexHull ^Manifold a ^Manifold b)
                  (cross-section? a) ^CrossSection (.convexHull ^CrossSection a ^CrossSection b)
                  :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
       :cljs (.then (js/Promise.all #js [a b])
@@ -277,15 +308,16 @@
    (reduce hull (hull a b) more)))
 
 (defn union
-  "Returns the union of two or more `Manifold`s or `CrossSections`."
+  "Returns the union of two or more Manifolds or CrossSections."
   ([a] a)
-  ([a b] #?(:clj (impl/union a b)
-            :cljs (.then (js/Promise.all #js [*manifold-module* a b])
-                         (fn [[module & args]]
-                           (.setup module)
-                           (.union module args)))))
+  ([a b]
+   #?(:clj (impl/union a b)
+      :cljs (.then (js/Promise.all #js [*manifold-module* a b])
+                   (fn [[module & args]]
+                     (.setup module)
+                     (.union module args)))))
   ([a b & more]
-   #?(:clj (reduce union (union a b) more)
+   #?(:clj (impl/batch-boolean a (cons b more) OpType/Add)
       :cljs (.then (js/Promise.all (list* *manifold-module* a b more))
                    (fn [[module & args]]
                      (.setup module)
@@ -294,37 +326,66 @@
 (defn difference
   "Returns the difference between two or more `Manifold`s or `CrossSection`s."
   ([a] a)
-  ([a b] #?(:clj (impl/difference a b)
-            :cljs (.then (js/Promise.all #js [*manifold-module* a b])
-                         (fn [[module & args]]
-                           (.setup module)
-                           (.difference module args)))))
+  ([a b]
+   #?(:clj (impl/difference a b)
+      :cljs (.then (js/Promise.all #js [*manifold-module* a b])
+                   (fn [[module & args]]
+                     (.setup module)
+                     (.difference module args)))))
   ([a b & more]
-   #?(:clj (reduce difference (difference a b) more)
+   #?(:clj (impl/batch-boolean a (cons b more) OpType/Subtract)
       :cljs (.then (js/Promise.all (list* *manifold-module* a b more))
                    (fn [[module & args]]
                      (.setup module)
                      (.difference module args))))))
 
 (defn intersection
-   "Returns the intersection of two or more `Manifold`s or `CrossSection`s."
+  "Returns the intersection of two or more `Manifold`s or `CrossSection`s."
   ([a] a)
   ([a b] #?(:clj (impl/intersection a b)
             :cljs (.then (js/Promise.all #js [*manifold-module* a b])
                          (fn [[module & args]] (.intersection module args)))))
   ([a b & more]
-   #?(:clj (reduce intersection (intersection a b) more)
+   #?(:clj (impl/batch-boolean a (cons b more) OpType/Intersect)
       :cljs (.then (js/Promise.all (list* *manifold-module* a b more))
                    (fn [[module & args]]
                      (.setup module)
                      (.intersection module args))))))
 
+(defn compose
+  "Purely topological join of a sequence of manifolds. Care should be taken to avoid overlapping results."
+  [manifolds]
+  #?(:clj (if (manifold? (first manifolds))
+            (Manifold/Compose (let [v (ManifoldVector.)]
+                                (doseq [man manifolds]
+                                  (.pushBack v man))
+                                v))
+            (CrossSection/Compose (let [v (CrossSectionVector.)]
+                                    (doseq [man manifolds]
+                                      (.pushBack v man))
+                                    v)))
+     :cljs (update-manifold *manifold-module*
+                            (fn [module]
+                              (.setup module)
+                              (.compose (clj->js manifolds))))))
+
+(defn decompose
+  "Inverse of compose."
+  [obj]
+  #?(:clj (cond (manifold? obj) (seq (.decompose ^Manifold obj))
+                (cross-section? obj) (seq (.decompose ^CrossSection obj))
+                :else (throw (IllegalArgumentException. (str "Input must be Manifold or CrossSection. Recieved: " (type obj)))))
+     :cljs (update-manifold obj
+                            (fn [x] (.decompose x)))))
+
 (defn scale
-  ([manifold [x y z]]
-   #?(:clj (.Scale ^Manifold manifold (DoubleVec3. x y z))
-      :cljs (.then manifold
-                   (fn [man]
-                     (.scale man #js [x y z]))))))
+  ([obj sv]
+   #?(:clj (cond (manifold? obj) (.scale ^Manifold manifold (DoubleVec3. (nth sv 0) (nth sv 1) (nth sv 2)))
+                 (cross-section? obj) (.scale ^CrossSection obj (DoubleVec2. (nth sv 0) (nth sv 1)))
+                 :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Received:" (type obj)))))
+      :cljs (.then obj
+                   (fn [o]
+                     (.scale o (clj->js sv)))))))
 
 (defn bounding-box
   ([manifold]
@@ -333,11 +394,12 @@
                              (fn [man]
                                (.boundingBox man))))))
 
-#?(:clj (defn get-properties
-          ([manifold]
-           (let [props (.GetProperties ^Manifold manifold)]
-             {:surface-area (.surfaceArea props)
-              :volume (.volume props)}))))
+#?(:clj
+   (defn get-properties
+     ([manifold]
+      (let [props (.getProperties ^Manifold manifold)]
+        {:surface-area (.surfaceArea props)
+         :volume (.volume props)}))))
 
 #_(keys (.volume (get-properties (cube 10 10 10 true))))
 
@@ -374,7 +436,7 @@
 
 #?(:clj
    (defn frame
-     "Create a column-major 4x3 matrix representing an affine transformation (last row is always [0 0 0 1]) in the context of the Manifold library.
+     "Create a column-major 4x3 matrix representing a 3D affine transformation (last row is always [0 0 0 1]) in the context of the Manifold library.
 
   This library takes the approach of \"interpreting\" the transform matrix as a coordinate frame. The first 3 columns represent
   the x,y, and z axes of the frame, and the last column represents the x,y,z position of the frame. Rotations of this frame
@@ -400,6 +462,21 @@
        c8 c9 c10 c11]
       (DoubleMat4x3. c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11))))
 
+#?(:clj
+   (defn frame-2d
+     "Create a matrix representing a 2D affine transformation."
+     ([]
+      (DoubleMat3x2.))
+     ([x]
+      (DoubleMat3x2. x))
+     ([rx ry tr]
+      (DoubleMat3x2. (DoubleVec2. (nth rx 0) (nth rx 1))
+                     (DoubleVec2. (nth ry 0) (nth ry 1))
+                     (DoubleVec2. (nth tr 0) (nth tr 1))))
+     ([c0 c1 c2
+       c3 c4 c5]
+      (DoubleMat3x2. c0 c1 c2 c3 c4 c5))))
+
 (defn translate
   "Translates a `Manifold` or `CrossSection` with the given vector."
   ([x tv]
@@ -416,12 +493,12 @@
    #?(:clj (impl/rotate x rv)
       :cljs (update-manifold x (fn [o] (.rotate o (clj->js rv)))))))
 
-(defn transform [x transform-matrix]
-  #?(:clj (impl/transform x transform-matrix)
-     :cljs (update-manifold x (fn [o] (.rotate o (clj->js transform-matrix))))))
+#?(:clj
+   (defn transform [x transform-matrix]
+     (impl/transform x transform-matrix)))
 
 (defn get-mesh [manifold]
-  #?(:clj (.GetMesh ^Manifold manifold)
+  #?(:clj (.getMesh ^Manifold manifold)
      :cljs (update-manifold manifold (fn [man] (.getMesh man)))))
 
 (defn cross-section
@@ -483,7 +560,7 @@
   ([section delta join-type miter-limit]
    (offset section delta join-type miter-limit 0.0))
   ([section delta join-type miter-limit arc-tolerance]
-   #?(:clj (.Offset ^CrossSection section delta
+   #?(:clj (.offset ^CrossSection section delta
                     (case join-type
                       :square 0
                       :round 1
@@ -494,19 +571,46 @@
                                (.offset x delta (case join-type :square 0 :round 1 :miter 2)
                                         miter-limit arc-tolerance))))))
 
-#?(:clj
-   (defn export-mesh
-     "Exports a mesh of specified format based on the file extension. Supports .stl, .glb and .obj formats
+(defn material
+  "Create a material for use with export-mesh when exporting as .glb format.
+
+  :roughness - (float) higher for more surface roughness.
+  :metalness - (float) higher for more metalic (shiny) surface.
+  :color - ([r g b alpha]) a uniform color for the mesh. Alpha determines opaqueness.
+  :vert-color - ([[r g b alpha] ...]) a color attribute for each vertex. Length must match vert-pos of the mesh.
+  :normal-channels - ([[i j k] ...]) For MeshGL exports (not yet supported). Indices where the normal channels can be found.
+  :color-channels - ([[i j k l] ...]) For MeshGL exports (not yet supported). Indicies where color channels can be found."
+  [& {:keys [roughness metalness color vert-color normal-channels color-channels]}]
+  (cond-> (Material.)
+    roughness (doto (.roughness roughness))
+    metalness (doto (.metalness metalness))
+    color (doto (.color (DoubleVec4. (nth color 0) (nth color 1) (nth color 2) (nth color 3))))
+    vert-color (doto (.vertColor ^DoubleVec4Vector
+                                 (if (seq? vert-color)
+                                   (double-vec4-sequence-to-native-double-buffer vert-color)
+                                   vert-color)))
+    normal-channels (doto (.normalChannels ^IntegerVec3Vector
+                                           (if (seq? normal-channels)
+                                             (integer-vec3-sequence-to-native-integer-buffer normal-channels)
+                                             normal-channels)))
+    color-channels (doto (.colorChannels ^IntegerVec4Vector
+                                         (if (seq? color-channels)
+                                           (integer-vec4-sequence-to-native-integer-buffer color-channels)
+                                           :color-channels)))))
+
+(defn export-mesh
+  "Exports a mesh of specified format based on the file extension. Supports .stl, .glb, .3mf and .obj formats
   (possibly others as well)."
-     [mesh filename  & {:keys [faceted]}]
-     (MeshIO/ExportMesh filename
-                        mesh
-                        (cond-> (ExportOptions.)
-                          faceted (.faceted true)))))
+  [mesh filename & {:keys [faceted material]}]
+  (MeshIO/ExportMesh filename
+                     mesh
+                     (cond-> ^ExportOptions (ExportOptions.)
+                       faceted  (doto (.faceted true))
+                       material (doto (.material material)))))
 
 #?(:clj
    (defn import-mesh
-     "Imports a mesh from a file. Supports .stl, .glb and .obj formats (possibly others as well)."
+     "Imports a mesh from a file. Supports .stl, .glb, .3mf, and .obj formats (possibly others as well)."
      ([filename]
       (MeshIO/ImportMesh filename false))
      ([filename force-cleanup?]

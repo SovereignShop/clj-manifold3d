@@ -7,12 +7,12 @@
   {:extra-deps  {thheller/shadow-cljs {:mvn/version "2.22.9"}}}
 
   :clj-prod
-  {:extra-deps {org.clojars.cartesiantheatrics/manifold3d {:mvn/version "1.0"}}
+  {:extra-deps {org.clojars.cartesiantheatrics/manifold3d {:mvn/version "1.0.1"}}
    :extra-paths ["src/cljc" "src/clj"]}
 
   :clj-dev
   {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}}
-   :extra-paths ["build" "test/cljc" "examples"]}
+   :extra-paths ["build" "test/cljc" "examples/"]}
 
   :clj-deploy
   {:main-opts   ["-m" "deploy"]}}}
