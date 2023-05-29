@@ -37,7 +37,7 @@ See the core namespace for some documentation. Refer to the original library for
 
 # Examples
 
-Examples should look very familiar if you've ever used OpenSCAD. Bellow are demonstrations of some of the operations that are currently available in Manifold.
+Examples should look very familiar if you've ever used OpenSCAD. Bellow are demonstrations of some of the operations that are currently unavailable in Manifold.
 
 2D hulls:
 
