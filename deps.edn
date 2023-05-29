@@ -7,7 +7,7 @@
   {:extra-deps  {thheller/shadow-cljs {:mvn/version "2.22.9"}}}
 
   :clj-prod
-  {:extra-deps {org.clojars.cartesiantheatrics/manifold3d {:mvn/version "1.0.1"}}
+  {:extra-deps {org.clojars.cartesiantheatrics/manifold3d {:mvn/version "1.0.2"}}
    :extra-paths ["src/cljc" "src/clj"]}
 
   :clj-dev
