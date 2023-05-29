@@ -3,7 +3,7 @@
   Refer to the original library for complete documentation.
 
   This library aspires to achieve code capatibility between Clojure and ClojureScript so that models
-  build in the more friendly Java environment can be shared and distributed in the javascript
+  build in the more friendly Java environment can be shared and played with or parameterized in the javascript
   environment. However, there are challenges in the way the Manifold js library is provided
   as a promise. To (mostly) support this, this library elects to accept promises at the API level.
   Working with promises can be pretty annoying, especially without a type system that supports
@@ -571,8 +571,9 @@
                                (.offset x delta (case join-type :square 0 :round 1 :miter 2)
                                         miter-limit arc-tolerance))))))
 
-(defn material
-  "Create a material for use with export-mesh when exporting as .glb format.
+#?(:clj
+   (defn material
+     "Create a material for use with export-mesh when exporting as .glb format.
 
   :roughness - (float) higher for more surface roughness.
   :metalness - (float) higher for more metalic (shiny) surface.
@@ -580,33 +581,34 @@
   :vert-color - ([[r g b alpha] ...]) a color attribute for each vertex. Length must match vert-pos of the mesh.
   :normal-channels - ([[i j k] ...]) For MeshGL exports (not yet supported). Indices where the normal channels can be found.
   :color-channels - ([[i j k l] ...]) For MeshGL exports (not yet supported). Indicies where color channels can be found."
-  [& {:keys [roughness metalness color vert-color normal-channels color-channels]}]
-  (cond-> (Material.)
-    roughness (doto (.roughness roughness))
-    metalness (doto (.metalness metalness))
-    color (doto (.color (DoubleVec4. (nth color 0) (nth color 1) (nth color 2) (nth color 3))))
-    vert-color (doto (.vertColor ^DoubleVec4Vector
-                                 (if (seq? vert-color)
-                                   (double-vec4-sequence-to-native-double-buffer vert-color)
-                                   vert-color)))
-    normal-channels (doto (.normalChannels ^IntegerVec3Vector
-                                           (if (seq? normal-channels)
-                                             (integer-vec3-sequence-to-native-integer-buffer normal-channels)
-                                             normal-channels)))
-    color-channels (doto (.colorChannels ^IntegerVec4Vector
-                                         (if (seq? color-channels)
-                                           (integer-vec4-sequence-to-native-integer-buffer color-channels)
-                                           :color-channels)))))
+     [& {:keys [roughness metalness color vert-color normal-channels color-channels]}]
+     (cond-> (Material.)
+       roughness (doto (.roughness roughness))
+       metalness (doto (.metalness metalness))
+       color (doto (.color (DoubleVec4. (nth color 0) (nth color 1) (nth color 2) (nth color 3))))
+       vert-color (doto (.vertColor ^DoubleVec4Vector
+                                    (if (seq? vert-color)
+                                      (double-vec4-sequence-to-native-double-buffer vert-color)
+                                      vert-color)))
+       normal-channels (doto (.normalChannels ^IntegerVec3Vector
+                                              (if (seq? normal-channels)
+                                                (integer-vec3-sequence-to-native-integer-buffer normal-channels)
+                                                normal-channels)))
+       color-channels (doto (.colorChannels ^IntegerVec4Vector
+                                            (if (seq? color-channels)
+                                              (integer-vec4-sequence-to-native-integer-buffer color-channels)
+                                              :color-channels))))))
 
-(defn export-mesh
-  "Exports a mesh of specified format based on the file extension. Supports .stl, .glb, .3mf and .obj formats
+#?(:clj
+   (defn export-mesh
+     "Exports a mesh of specified format based on the file extension. Supports .stl, .glb, .3mf and .obj formats
   (possibly others as well)."
-  [mesh filename & {:keys [faceted material]}]
-  (MeshIO/ExportMesh filename
-                     mesh
-                     (cond-> ^ExportOptions (ExportOptions.)
-                       faceted  (doto (.faceted true))
-                       material (doto (.material material)))))
+     [mesh filename & {:keys [faceted material]}]
+     (MeshIO/ExportMesh filename
+                        mesh
+                        (cond-> ^ExportOptions (ExportOptions.)
+                          faceted  (doto (.faceted true))
+                          material (doto (.material material))))))
 
 #?(:clj
    (defn import-mesh

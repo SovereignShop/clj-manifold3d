@@ -19,6 +19,14 @@ as a promise. To (mostly) support this, this library elects to accept promises a
 Working with promises can be pretty annoying, especially without a type system that supports
 them well. For this reason, the CLJS API generally also works on non-promise objects.
 
+# Install
+
+The Manifold .so libs are included in the bindings jar. To export meshes you'll need to have libassimp installed on your system:
+
+``` sh
+sudo apt install libassimp-dev
+```
+
 # Status
 
 Alpha, core API is unlikely to change much but test coverage is not complete. There likely are bugs. The CLJS implementation especially is likely to change.
