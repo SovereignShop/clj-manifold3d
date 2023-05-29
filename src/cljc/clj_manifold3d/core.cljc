@@ -124,7 +124,7 @@
                                (.setup mod)
                                (mod.Manifold. (mod.Mesh. (clj->js mesh))))))))
 #?(:clj
-   (defn empty? [x]
+   (defn is-empty? [x]
      (cond (manifold? x) (.isEmpty ^Manifold x)
            (cross-section? x) (.isEmpty ^CrossSection x)
            :else (throw (IllegalArgumentException. (str "Should be Manifold or CrossSection. Recieved: " (type x)))))))
