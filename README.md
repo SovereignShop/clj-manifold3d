@@ -42,12 +42,16 @@ Examples should look very familiar if you've ever used OpenSCAD. Bellow are demo
 2D hulls:
 
 ``` clojure
+(require '[clj-manifold3d.core :refer [circle square translate extrude get-mesh export-mesh hull
+                                       cross-section revolve difference cylinder sphere offset
+                                       polyhedron]])
+
 (-> (hull (circle 5)
           (-> (square 10 10 true)
               (translate [30 0])))
     (extrude 80 70 180 [0.7 0.7])
     (get-mesh)
-    (export-mesh "resources/models/hull2D.stl"))
+    (export-mesh "hull2D.stl"))
 ```
 
 ![2D hull](resources/images/hull2D.png)
@@ -59,7 +63,7 @@ Examples should look very familiar if you've ever used OpenSCAD. Bellow are demo
           (-> (sphere 4 120)
               (translate [0 0 20])))
     (get-mesh)
-    (export-mesh "resources/models/hull3D.stl"))
+    (export-mesh "hull3D.stl"))
 ```
 
 ![3D hull](resources/images/Hull3D.png)
@@ -72,7 +76,30 @@ Partial revolutions:
   (-> (difference m (offset m -1))
       (revolve 50 135)
       (get-mesh)
-      (export-mesh "resources/models/revolve.stl")))
+      (export-mesh "revolve.stl")))
 ```
 
 ![Partial revolve](resources/images/revolve.png)
+
+Polyhedron:
+
+``` clojure
+(-> (polyhedron [[0 0 0]
+                 [5 0 0]
+                 [5 5 0]
+                 [0 5 0]
+                 [0 0 5]
+                 [5 0 5]
+                 [5 5 5]
+                 [0 5 5]]
+                [[0 3 2 1]
+                 [4 5 6 7]
+                 [0 1 5 4]
+                 [1 2 6 5]
+                 [2 3 7 6]
+                 [3 0 4 7]])
+    (get-mesh)
+    (export-mesh "polyhedron-cube.stl"))
+```
+
+![Partial revolve](resources/images/polyhedron-cube.png)
