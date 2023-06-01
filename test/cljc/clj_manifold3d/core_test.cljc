@@ -82,11 +82,6 @@
     (doseq [i (range (.size verts))]
       (is (not (pos? (.y (.get verts i))))))))
 
-(-> (union (cube 10 10 10 false)
-           (mirror (cube 10 10 20 false) [0 1 0]))
-    (get-mesh)
-    (export-mesh "test.glb"))
-
 (deftest test-smooth-refine
   (let [tet (tetrahedron)
         smoothed (-> tet
@@ -97,7 +92,13 @@
     (is (about= (:volume props) 17.38 0.1))
     (is (about= (:surface-area props) 33.38 0.1 ))))
 
-
 (deftest test-compose
-  (let [man (compose [(tetrahedron) (cube 1 1 1 false) (sphere 1 4)])]
-    (-> man (get-mesh) (export-mesh "test.glb"))))
+  (let [man (compose [(tetrahedron) (cube 1 1 1 false) (sphere 1 4)])]))
+
+(deftest test-scale
+  (let [c (cube 10 10 10)
+        unscaled-props (get-properties c)
+        scaled (scale c [2.0 2.0 2.0])
+        scaled-props (get-properteis scaled)]
+    (is (about= (* 4 (:volume unscaled-props))
+                (:volume scaled-props)))))

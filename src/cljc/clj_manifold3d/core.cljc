@@ -379,17 +379,22 @@
                             (fn [x] (.decompose x)))))
 
 (defn scale
+  "Scale `obj` (Manifold or CrossSection). `sv` is a [scale-x scale-y] vector for cross-sections and a
+  [scale-x scale-y scale-z] vector for Manifolds."
   ([obj sv]
-   #?(:clj (cond (manifold? obj) (.scale ^Manifold manifold (DoubleVec3. (nth sv 0) (nth sv 1) (nth sv 2)))
+   #?(:clj (cond (manifold? obj) (.scale ^Manifold obj (DoubleVec3. (nth sv 0) (nth sv 1) (nth sv 2)))
                  (cross-section? obj) (.scale ^CrossSection obj (DoubleVec2. (nth sv 0) (nth sv 1)))
                  :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Received:" (type obj)))))
       :cljs (.then obj
                    (fn [o]
                      (.scale o (clj->js sv)))))))
 
-(defn bounding-box
-  ([manifold]
-   #?(:clj (.boundingBox ^Manifold manifold)
+(defn bounds
+  "Get the bounding `manifold3d.pub.Box` for Manifolds or `manifold3d.pub.Rect` for CrossSections."
+  ([obj]
+   #?(:clj (cond (manifold? obj) (.boundingBox ^Manifold obj)
+                 (cross-section? obj) (.bounds ^CrossSection obj)
+                 :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Received: " (type obj)))))
       :cljs (update-manifold manifold
                              (fn [man]
                                (.boundingBox man))))))
@@ -400,8 +405,6 @@
       (let [props (.getProperties ^Manifold manifold)]
         {:surface-area (.surfaceArea props)
          :volume (.volume props)}))))
-
-#_(keys (.volume (get-properties (cube 10 10 10 true))))
 
 (defn trim-by-plane
   "Subtracts the halfspace defined by the `normal`, offset by `origin-offset` in the direction of the normal."
@@ -441,12 +444,12 @@
   This library takes the approach of \"interpreting\" the transform matrix as a coordinate frame. The first 3 columns represent
   the x,y, and z axes of the frame, and the last column represents the x,y,z position of the frame. Rotations of this frame
   are applied \"in place\" (i.e. relative to axes of the frame) using Rodrigues' rotation formula. Translations are applied relative to
-  the frame. Note that the unit length of each axis column is conserved under rotation.
+  the frame. The unit length of each axis column is conserved under transformation.
 
-  In practice, this often means the order of rotation translation operations are \"flipped\" relative to Manifolds and CrossSections.
+  In practice, this often means the order of rotation and translation operations are \"flipped\" relative to Manifolds and CrossSections.
   i.e. (transform manifold (-> (frame 1) (rotate rv) (translate tv))) is equivalent to (-> manifold (translate tv) (rotate rv)).
 
-  This approach makes it easy to defined \"paths\" of frames, where the next frame in the path is a function of the previous frame.
+  This approach makes it easy to define \"paths\" of frames, where the next frame in the path is a function of the previous frame.
   "
      ([]
       (DoubleMat4x3.))
@@ -601,8 +604,8 @@
 
 #?(:clj
    (defn export-mesh
-     "Exports a mesh of specified format based on the file extension. Supports .stl, .glb, .3mf and .obj formats
-  (possibly others as well)."
+     "Exports a mesh of specified format based on the file extension. Supports .stl, .glb, .3mf, .3ds, and .obj formats
+  (possibly others as well). It's important to use a binary format for large models."
      [mesh filename & {:keys [faceted material]}]
      (MeshIO/ExportMesh filename
                         mesh
@@ -612,8 +615,28 @@
 
 #?(:clj
    (defn import-mesh
-     "Imports a mesh from a file. Supports .stl, .glb, .3mf, and .obj formats (possibly others as well)."
+     "Imports a mesh from a file. Supports .stl, .glb, .3mf, .3ds, and .obj formats (possibly others as well)."
      ([filename]
       (MeshIO/ImportMesh filename false))
      ([filename force-cleanup?]
       (MeshIO/ImportMesh filename force-cleanup?))))
+
+(defn -main [& args])
+
+
+(comment
+
+  (let [tf (-> (frame 1)
+               (rotate [0 (/ Math/PI 4) 0])
+               (translate [0 0 50])
+               (rotate [0 (- (/ Math/PI 4)) 0])
+               (translate [0 0 30]))
+        itf (MatrixTransforms/InvertTransform tf)]
+    (-> (cube 10 10 20 false)
+        (transform tf)
+        #_(transform itf)
+        #_(transform tf)
+        (get-mesh)
+        (export-mesh "test.stl")))
+
+  )

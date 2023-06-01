@@ -48,8 +48,8 @@
 
 (extend-protocol ITransformable
   CrossSection
-  (rotate [this rv]
-    (.rotate this (DoubleVec2. (nth rv 0) (nth rv 1))))
+  (rotate [this degrees]
+    (.rotate this degrees))
   (translate [this tv]
     (.translate this (DoubleVec2. (nth tv 0) (nth tv 1))))
   (transform [this tf]
