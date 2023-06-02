@@ -308,8 +308,8 @@
    (reduce hull (hull a b) more)))
 
 (defn union
-  "Returns the union of two or more Manifolds or CrossSections."
-  ([a] a)
+  "Returns the union of input Manifolds or CrossSections."
+  ([a] (if (sequential? a) (apply union a) a))
   ([a b]
    #?(:clj (impl/union a b)
       :cljs (.then (js/Promise.all #js [*manifold-module* a b])
@@ -324,8 +324,8 @@
                      (.union module args))))))
 
 (defn difference
-  "Returns the difference between two or more `Manifold`s or `CrossSection`s."
-  ([a] a)
+  "Returns the difference between first input `Manifold` or `CrossSection` and rest."
+  ([a] (if (sequential? a) (apply difference a) a))
   ([a b]
    #?(:clj (impl/difference a b)
       :cljs (.then (js/Promise.all #js [*manifold-module* a b])
@@ -340,8 +340,8 @@
                      (.difference module args))))))
 
 (defn intersection
-  "Returns the intersection of two or more `Manifold`s or `CrossSection`s."
-  ([a] a)
+  "Returns the intersection of all input `Manifold`s or `CrossSection`s."
+  ([a] (if (sequential? a) (apply intersection a) a))
   ([a b] #?(:clj (impl/intersection a b)
             :cljs (.then (js/Promise.all #js [*manifold-module* a b])
                          (fn [[module & args]] (.intersection module args)))))
@@ -500,6 +500,20 @@
    (defn transform [x transform-matrix]
      (impl/transform x transform-matrix)))
 
+#?(:clj
+   (defn center
+     "Center Manifold or CrossSection along x, y, and/or z axes. `axes` is a set that specifies which axes to center in. Defaults
+  to X and Y axes. CLJ only."
+     ([obj]
+      (center obj #{:x :y}))
+     ([obj axes]
+      (let [axes (if (set? axes) axes (into #{} axes))
+            bnds (.Center (bounds obj))
+            tr (cond-> [(if (contains? axes :x) (- (.x bnds)) 0)
+                        (if (contains? axes :y) (- (.y bnds)) 0)]
+                 (manifold? obj) (conj (if (contains? axes :z) (- (.z bnds)) 0)))]
+        (translate obj tr)))))
+
 (defn get-mesh [manifold]
   #?(:clj (.getMesh ^Manifold manifold)
      :cljs (update-manifold manifold (fn [man] (.getMesh man)))))
@@ -622,21 +636,3 @@
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
-
-
-(comment
-
-  (let [tf (-> (frame 1)
-               (rotate [0 (/ Math/PI 4) 0])
-               (translate [0 0 50])
-               (rotate [0 (- (/ Math/PI 4)) 0])
-               (translate [0 0 30]))
-        itf (MatrixTransforms/InvertTransform tf)]
-    (-> (cube 10 10 20 false)
-        (transform tf)
-        #_(transform itf)
-        #_(transform tf)
-        (get-mesh)
-        (export-mesh "test.stl")))
-
-  )

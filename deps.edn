@@ -1,4 +1,5 @@
-{:aliases
+{:paths ["src/cljc" "src/clj"]
+ :aliases
  {:cljs-prod
   {:extra-deps {funcool/promesa {:mvn/version "10.0.594"}}
    :extra-paths ["src/cljs" "src/js"]}
