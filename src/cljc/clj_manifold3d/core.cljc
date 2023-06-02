@@ -502,7 +502,7 @@
 
 #?(:clj
    (defn center
-     "Center Manifold or CrossSection along x, y, and/or z axes. `axes` is a set that specifies which axes to center in. Defaults
+     "Center Manifold or CrossSection along x, y, and/or z axes. `axes` is a set that specifies which axes to center along. Defaults
   to X and Y axes. CLJ only."
      ([obj]
       (center obj #{:x :y}))

@@ -27,6 +27,8 @@ The Manifold .so libs are included in the bindings jar. To export meshes you'll 
 sudo apt install libassimp-dev
 ```
 
+The ClojureScript lib is not yet well supported or available via. Maven. You'll have to clone the repo and move `public/manifold.wasm` into `public/js/`. Run `npm install` to install the gltf (for rendering meshes) then connect via. shadow. There's a half-baked function called `createGLTF` in `manifold_viewer.js` that will take a manifold and throw it onto the `model-viewer` element defined in the index.html.
+
 # Status
 
 Alpha, core API is unlikely to change much but test coverage is not complete. There likely are bugs. The CLJS implementation especially is likely to change.
