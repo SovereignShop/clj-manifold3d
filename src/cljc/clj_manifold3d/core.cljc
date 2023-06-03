@@ -12,7 +12,7 @@
            [manifold3d Manifold MeshUtils ManifoldVector]
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon OpType]
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
-           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector
+           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
             DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 MatrixTransforms DoubleVec4]
            [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
   #?(:clj
@@ -514,7 +514,9 @@
                  (manifold? obj) (conj (if (contains? axes :z) (- (.z bnds)) 0)))]
         (translate obj tr)))))
 
-(defn get-mesh [manifold]
+(defn get-mesh
+  "Calculates and returns the Manifold's mesh. Note that most of the CSG work is done when running this function."
+  [manifold]
   #?(:clj (.getMesh ^Manifold manifold)
      :cljs (update-manifold manifold (fn [man] (.getMesh man)))))
 
@@ -587,6 +589,77 @@
                              (fn [x]
                                (.offset x delta (case join-type :square 0 :round 1 :miter 2)
                                         miter-limit arc-tolerance))))))
+
+#?(:clj
+   (defn to-polygons
+     "Return the outer contours of cross-section as polygons. Returns iterable collections with
+  DoubleVec2 objects as vertices. Use (.x vert) and (.y vert) to get x,y coordinates.
+  This function has substantial JNI overhead. CLJ only."
+     [cross-section]
+     (seq (.toPolygons ^CrossSection cross-section))))
+
+#?(:clj
+   (defn status
+     "Get manifold error status."
+     [manifold]
+     (case (.status ^Manifold manifold)
+       0 :NoError
+       1 :NonFiniteVertex
+       2 :NotManifold
+       3 :VertexOutOfBounds
+       4 :PropertiesWrongLength
+       5 :MissingPositionProperties
+       6 :MergeVectorsDifferentLengths
+       7 :MergeIndexOutOfBounds
+       8 :TransformWrongLength
+       9 :RunIndexWrongLength
+       10 :FaceIDWrongLength
+       11 :InvalidConstruction)))
+
+#?(:clj
+   (defn loft
+     "Loft between isomorphic cross sections transformed by the corresponding 3D transform frames.
+  If a single cross-section is provided, lofts between copies of the cross section. cross-sections
+  do not need to be unique objects. The order and number of polygons and polygon vertices must be
+  equivalent for all cross-sections.
+
+  ex.
+  (let [c (difference (square 10 10 true) (square 8 8 true))]
+    (loft [c (scale c [1.5 1.5]) c]
+          [(frame 1)
+           (-> (frame 1) (translate [0 0 15]))
+           (-> (frame 1) (translate [0 0 30]))]))
+
+  (loft (difference (square 10 10 true) (square 8 8 true))
+        (reductions
+         (fn [f [x y]]
+           (-> f (translate [x y 30])))
+         (frame 1)
+         [[20 0]
+          [0 20]
+          [20 0]]))"
+     [cross-sections frames]
+     (let [sections (if (cross-section? cross-sections)
+                      cross-sections
+                      (let [cv (CrossSectionVector.)]
+                        (when-not (= (count cross-sections) (count frames))
+                          (throw (IllegalArgumentException. "cross-sections and frames must be same length.")))
+                        (doseq [^CrossSection c cross-sections]
+                          (.pushBack cv c))
+                        cv))
+           tv (DoubleMat4x3Vector.)]
+       (doseq [^DoubleMat4x3 t frames]
+         (.pushBack tv t))
+       (MeshUtils/Loft sections ^DoubleMat4x3Vector tv))))
+
+#?(:clj
+   (defn simplify
+     "Remove vertices from contours in `cross-section` that are less than the specified distance
+  `epsilon` from an imaginary line that passes through its two adjacent vertices. Near-duplicates
+  and colinear points will be removed. It is recommended to apply this function after `offset`, especially when
+  offseting with join-type = :miter. CLJ only."
+     [cross-section epsilon]
+     (.simplify ^CrossSection cross-section epsilon)))
 
 #?(:clj
    (defn material
