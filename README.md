@@ -110,10 +110,10 @@ Loft:
 
 ``` clojure
 (-> (let [c (difference (square 10 10 true) (square 8 8 true))]
-      (m/loft [c (scale c [1.5 1.5]) c]
-              [(frame 1)
-               (-> (frame 1) (translate [0 0 15]))
-               (-> (frame 1) (translate [0 0 30]))]))
+      (loft [c (scale c [1.5 1.5]) c]
+            [(frame 1)
+             (-> (frame 1) (translate [0 0 15]))
+             (-> (frame 1) (translate [0 0 30]))]))
     (get-mesh)
     (export-mesh "loft.stl"))
 ```
