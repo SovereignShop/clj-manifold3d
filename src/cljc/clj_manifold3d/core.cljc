@@ -618,7 +618,7 @@
 
 #?(:clj
    (defn loft
-     "Loft between isomorphic cross sections transformed by the corresponding 3D transform frames.
+     "Loft between isomorphic cross sections transformed by the associated 3D transform frames.
   If a single cross-section is provided, lofts between copies of the cross section. cross-sections
   do not need to be unique objects. The order and number of polygons and polygon vertices must be
   equivalent for all cross-sections.
@@ -638,19 +638,34 @@
          [[20 0]
           [0 20]
           [20 0]]))"
-     [cross-sections frames]
-     (let [sections (if (cross-section? cross-sections)
-                      cross-sections
-                      (let [cv (CrossSectionVector.)]
-                        (when-not (= (count cross-sections) (count frames))
-                          (throw (IllegalArgumentException. "cross-sections and frames must be same length.")))
-                        (doseq [^CrossSection c cross-sections]
-                          (.pushBack cv c))
-                        cv))
-           tv (DoubleMat4x3Vector.)]
-       (doseq [^DoubleMat4x3 t frames]
-         (.pushBack tv t))
-       (MeshUtils/Loft sections ^DoubleMat4x3Vector tv))))
+     ([loft-segments]
+      (let [cv (CrossSectionVector.)
+            fv (DoubleMat4x3Vector.)
+            last-cross-section (:cross-section (first loft-segments))]
+        (when (nil? last-cross-section)
+          (throw (IllegalArgumentException. "First loft segment must contain :cross-section")))
+        (loop [last-cross-section last-cross-section
+               [{:keys [frame cross-section] :as segment} & more] loft-segments]
+          (cond (nil? segment) (MeshUtils/Loft cv fv)
+                (nil? frame) (throw (IllegalArgumentException. "All loft segments must have :frame"))
+                :else (let [c (or cross-section last-cross-section)]
+                        (.pushBack cv c)
+                        (.pushBack fv frame)
+                        (recur c more))))))
+     ([cross-sections frames]
+      (let [sections (if (cross-section? cross-sections)
+                       cross-sections
+                       (let [cv (CrossSectionVector.)]
+                         (when-not (= (count cross-sections) (count frames))
+                           (throw (IllegalArgumentException. "cross-sections and frames must be same length.")))
+                         (doseq [^CrossSection c cross-sections]
+                           (.pushBack cv c))
+                         cv))
+            tv (DoubleMat4x3Vector.)]
+        (doseq [^DoubleMat4x3 t frames]
+          (.pushBack tv t))
+        (MeshUtils/Loft sections ^DoubleMat4x3Vector tv)))))
+
 
 #?(:clj
    (defn simplify

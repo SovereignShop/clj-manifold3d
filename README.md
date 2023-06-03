@@ -8,7 +8,7 @@ This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible 
 It currently only includes Linux builds of Manifold. I intend to support other environments soon.
 
 It implements most of the library functionality, plus extends it to support native convex hulls (2D and 3D), partial
-revolutions, and polyhedrons. It provides a full superset of OpenSCAD functionality, making migration as easy as possible.
+revolutions, polyhedrons, and n-section lofts. It provides a full superset of OpenSCAD functionality, making migration as easy as possible.
 
 Manifold represents a dramatic advance in the state-of-the-art of open-source programmatic CAD. It has been adopted by most major CAD kernels.
 
@@ -46,7 +46,7 @@ Examples should look very familiar if you've ever used OpenSCAD. Bellow are demo
 ``` clojure
 (require '[clj-manifold3d.core :refer [circle square translate extrude get-mesh export-mesh hull
                                        cross-section revolve difference cylinder sphere offset
-                                       polyhedron]])
+                                       polyhedron loft frame]])
 
 (-> (hull (circle 5)
           (-> (square 10 10 true)
@@ -105,3 +105,17 @@ Polyhedron:
 ```
 
 ![Partial revolve](resources/images/polyhedron-cube.png)
+
+Loft:
+
+``` clojure
+(-> (let [c (m/difference (m/square 10 10 true) (m/square 8 8 true))]
+      (m/loft [c (m/scale c [1.5 1.5]) c]
+              [(m/frame 1)
+               (-> (m/frame 1) (m/translate [0 0 15]))
+               (-> (m/frame 1) (m/translate [0 0 30]))]))
+    (m/get-mesh)
+    (m/export-mesh "test.stl"))
+```
+
+![Partial revolve](resources/images/loft-example.png)
