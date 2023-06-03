@@ -109,13 +109,13 @@ Polyhedron:
 Loft:
 
 ``` clojure
-(-> (let [c (m/difference (m/square 10 10 true) (m/square 8 8 true))]
-      (m/loft [c (m/scale c [1.5 1.5]) c]
-              [(m/frame 1)
-               (-> (m/frame 1) (m/translate [0 0 15]))
-               (-> (m/frame 1) (m/translate [0 0 30]))]))
-    (m/get-mesh)
-    (m/export-mesh "test.stl"))
+(-> (let [c (difference (square 10 10 true) (square 8 8 true))]
+      (m/loft [c (scale c [1.5 1.5]) c]
+              [(frame 1)
+               (-> (frame 1) (translate [0 0 15]))
+               (-> (frame 1) (translate [0 0 30]))]))
+    (get-mesh)
+    (export-mesh "loft.stl"))
 ```
 
 ![Partial revolve](resources/images/loft-example.png)
