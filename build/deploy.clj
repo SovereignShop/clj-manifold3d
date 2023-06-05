@@ -23,10 +23,6 @@
              {:out-path                (format "target/clj-manifold3d-%s.jar" version)
               :paths                   ["src/clj" "src/cljc"]
               :deps                    deps
-              :manifest                {:scm [{"url" "https://github.com/SovereignShop/clj-manifold3d.git"
-                                               "connection" "scm:git:git://github.com/SovereignShop/clj-manifold3d"
-                                               "developerConnection" "scm:git:ssh://git@github.com/SovereignShop/clj-manifold3d"
-                                               "tag" version}]}
               :mvn/repos               '{"clojars" {:url "https://repo.clojars.org/"}}
               :exclusion-predicate     jar/default-exclusion-predicate
               :allow-all-dependencies? true})
