@@ -501,6 +501,13 @@
      (impl/transform x transform-matrix)))
 
 #?(:clj
+   (defn invert-frame
+     "Create an \"inverse\" frame. This is not equivalent to matrix inversion but does
+  have the property that (~= manifold (transform (transform manifold tf) (invert-transform tf)))"
+     [m]
+     (MatrixTransforms/InvertTransform m)))
+
+#?(:clj
    (defn center
      "Center Manifold or CrossSection along x, y, and/or z axes. `axes` is a set that specifies which axes to center along. Defaults
   to X and Y axes. CLJ only."
@@ -637,7 +644,24 @@
          (frame 1)
          [[20 0]
           [0 20]
-          [20 0]]))"
+          [20 0]]))
+
+  It also has a single arity operation that accepts a vector of {:cross-section ... :frame ...} maps.
+  It will automatically use the \"lastest\" cross-section if one or more is missing. :frame must be
+  defined in each map.
+
+  (loft
+   (reductions
+    (fn [m _]
+      (assoc m
+             :frame (-> (:frame m)
+                        (MatrixTransforms/Yaw (/ 0.2 2))
+                        (MatrixTransforms/Translate (DoubleVec3. 0 0 10))
+                        (MatrixTransforms/Yaw (/ 0.2 2)))))
+    {:cross-section (difference (square 4 4 true)
+                                (square 2 2 true))
+     :frame (frame 1)}
+  (cons (rem (* 2 Math/PI) 0.2) (range (quot (* 2 Math/PI) 0.2)))))"
      ([loft-segments]
       (let [cv (CrossSectionVector.)
             fv (DoubleMat4x3Vector.)
@@ -665,7 +689,6 @@
         (doseq [^DoubleMat4x3 t frames]
           (.pushBack tv t))
         (MeshUtils/Loft sections ^DoubleMat4x3Vector tv)))))
-
 
 #?(:clj
    (defn simplify
