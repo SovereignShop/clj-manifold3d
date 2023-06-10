@@ -17,8 +17,8 @@
                                (exec/exec "git" {:proc-args ["describe" "--tags"]
                                                  ;; The error message of the exception thrown upon error.
                                                  :error-msg "Failed to get tags"})))
-                     "")]
-    (assert (re-find #"^\d.\d.\d$" version))
+                     ".4-SNAPSHOT")]
+    (assert (re-find #"^\d.\d.\d.4-SNAPSHOT$" version))
     (jar/jar 'org.clojars.cartesiantheatrics/clj-manifold3d {:mvn/version version}
              {:out-path                (format "target/clj-manifold3d-%s.jar" version)
               :paths                   ["src/clj" "src/cljc"]
