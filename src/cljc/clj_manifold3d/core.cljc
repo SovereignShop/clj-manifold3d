@@ -9,7 +9,7 @@
   Working with promises can be pretty annoying, especially without a type system that supports
   them well. For this reason, the CLJS API generally also works on non-promise objects."
   #?(:clj (:import
-           [manifold3d Manifold MeshUtils ManifoldVector]
+           [manifold3d Manifold MeshUtils ManifoldVector ConvexHull]
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon OpType]
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
            [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
@@ -104,7 +104,7 @@
 
 #?(:clj
    (defn mesh
-     "Convenience function to create a mesh from sequences as efficiently as reasonably possible in Clojure. :vert-pos and :tri-verts should be included together. Others will be computed later if not provided.
+     "Convenience function to create a mesh from sequences. :vert-pos and :tri-verts should be included together. Others will be computed later if not provided.
   For maximum java performance use FromBuffer constructors directly and use natively ordered structures that can provide java.nio buffers. If necessary, write meshing alorthims in c++ using
   GLM directly and bind to them."
      [& {:keys [tri-verts vert-pos vert-normal halfedge-tangent]}]
@@ -258,9 +258,12 @@
                                (.smooth module mesh (clj->js sharpened-edges)))))))
 
 (defn mirror
-  "Mirrors manifold over the plane desribed by the normal."
-  ([manifold normal]
-   #?(:clj (.mirror ^Manifold manifold (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
+  "Mirrors manifold/cross-section over the plane/line desribed by the normal."
+  ([obj normal]
+   #?(:clj (cond (manifold? manifold) (.mirror ^Manifold obj (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
+                 (cross-section? obj) (.mirror ^CrossSection obj (DoubleVec2. (nth normal 0) (nth normal 1)))
+                 :else
+                 (throw (IllegalArgumentException. "Must be Manifold or CrossSection. Recieved: " (type obj))))
       :cljs (update-manifold manifold
                              (fn [man]
                                (.mirror man (clj->js normal)))))))
@@ -297,9 +300,14 @@
 
 (defn hull
   "Takes two or more Manifolds or CrossSection and returns their convex hull."
+  ([a] (if (sequential? a) (apply hull a)
+           (cond (manifold? a) (ConvexHull/ConvexHull ^Manifold a)
+                 (cross-section? a) (ConvexHull/ConvexHull ^CrossSection a)
+                 :else
+                 (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))))
   ([a b]
-   #?(:clj (cond (manifold? a) ^Manifold (.convexHull ^Manifold a ^Manifold b)
-                 (cross-section? a) ^CrossSection (.convexHull ^CrossSection a ^CrossSection b)
+   #?(:clj (cond (manifold? a) ^Manifold (ConvexHull/ConvexHull ^Manifold a ^Manifold b)
+                 (cross-section? a) ^CrossSection (ConvexHull/ConvexHull ^CrossSection a ^CrossSection b)
                  :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
       :cljs (.then (js/Promise.all #js [a b])
                    (fn [[a b]]

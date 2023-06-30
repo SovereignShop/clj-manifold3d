@@ -44,7 +44,7 @@
   (difference [this o]
     (.subtract this o))
   (intersection [this o]
-    (.intersection this o)))
+    (.intersect this o)))
 
 (extend-protocol ITransformable
   CrossSection
