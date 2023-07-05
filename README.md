@@ -21,6 +21,12 @@ them well. For this reason, the CLJS API generally also works on non-promise obj
 
 # Install
 
+You need include the native [Manifold Bindings](https://github.com/SovereignShop/manifold) for your platform separately. For example:
+
+``` clojure
+{:deps {:deps {org.clojars.cartesiantheatrics/manifold3d$linux-TBB-cuda-x86_64 {:mvn/version "1.0.57"}}}}
+```
+
 The Manifold .so libs are included in the bindings jar. To export meshes you'll need to have libassimp installed on your system:
 
 ``` sh
