@@ -10,7 +10,7 @@
   them well. For this reason, the CLJS API generally also works on non-promise objects."
   #?(:clj (:import
            [manifold3d Manifold MeshUtils ManifoldVector ConvexHull]
-           [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon OpType]
+           [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
            [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
             DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 MatrixTransforms DoubleVec4]
@@ -31,6 +31,18 @@
      (if (promise? manifold)
        (.then manifold f)
        (f manifold))))
+
+#?(:clj
+   (defn- double-vec2-sequence-to-native-double-buffer
+     "Maps a sequence of 3-sequences to a flat row-major double buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 2 Double/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asDoubleBuffer))]
+       (doseq [[^double a ^double b] col]
+         (.put buf a)
+         (.put buf b))
+       (.flip buf))))
 
 #?(:clj
    (defn- double-vec3-sequence-to-native-double-buffer
@@ -631,6 +643,13 @@
        10 :FaceIDWrongLength
        11 :InvalidConstruction)))
 
+(defn- >polygons [x]
+  (cond (cross-section? x) (.toPolygons ^CrossSection x)
+        (sequential? x) (let [pv (Polygons.)]
+                          (doseq [poly (if (number? (ffirst x)) [x] x)]
+                            (.pushBack pv (SimplePolygon/FromBuffer (double-vec2-sequence-to-native-double-buffer poly))))
+                          pv)))
+
 #?(:clj
    (defn loft
      "Loft between isomorphic cross sections transformed by the associated 3D transform frames.
@@ -671,7 +690,7 @@
      :frame (frame 1)}
   (cons (rem (* 2 Math/PI) 0.2) (range (quot (* 2 Math/PI) 0.2)))))"
      ([loft-segments]
-      (let [cv (CrossSectionVector.)
+      (let [cv (PolygonsVector.)
             fv (DoubleMat4x3Vector.)
             last-cross-section (:cross-section (first loft-segments))]
         (when (nil? last-cross-section)
@@ -681,17 +700,17 @@
           (cond (nil? segment) (MeshUtils/Loft cv fv)
                 (nil? frame) (throw (IllegalArgumentException. "All loft segments must have :frame"))
                 :else (let [c (or cross-section last-cross-section)]
-                        (.pushBack cv c)
+                        (.pushBack cv (>polygons c))
                         (.pushBack fv frame)
                         (recur c more))))))
      ([cross-sections frames]
       (let [sections (if (cross-section? cross-sections)
                        cross-sections
-                       (let [cv (CrossSectionVector.)]
+                       (let [cv (PolygonsVector.)]
                          (when-not (= (count cross-sections) (count frames))
                            (throw (IllegalArgumentException. "cross-sections and frames must be same length.")))
-                         (doseq [^CrossSection c cross-sections]
-                           (.pushBack cv c))
+                         (doseq [c cross-sections]
+                           (.pushBack cv (>polygons c)))
                          cv))
             tv (DoubleMat4x3Vector.)]
         (doseq [^DoubleMat4x3 t frames]
