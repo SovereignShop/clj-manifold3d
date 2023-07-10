@@ -272,11 +272,11 @@
 (defn mirror
   "Mirrors manifold/cross-section over the plane/line desribed by the normal."
   ([obj normal]
-   #?(:clj (cond (manifold? manifold) (.mirror ^Manifold obj (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
+   #?(:clj (cond (manifold? obj) (.mirror ^Manifold obj (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
                  (cross-section? obj) (.mirror ^CrossSection obj (DoubleVec2. (nth normal 0) (nth normal 1)))
                  :else
                  (throw (IllegalArgumentException. "Must be Manifold or CrossSection. Recieved: " (type obj))))
-      :cljs (update-manifold manifold
+      :cljs (update-manifold obj
                              (fn [man]
                                (.mirror man (clj->js normal)))))))
 
