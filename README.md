@@ -8,7 +8,7 @@ This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible 
 It currently only includes Linux builds of Manifold. I intend to support other environments soon.
 
 It implements most of the library functionality, plus extends it to support native convex hulls (2D and 3D), partial
-revolutions, polyhedrons, and n-section lofts. It provides a full superset of OpenSCAD functionality, making migration as easy as possible.
+revolutions, polyhedrons, and n-section lofts. It provides nearly a full superset of OpenSCAD functionality, making migration as easy as possible.
 
 Manifold represents a dramatic advance in the state-of-the-art of open-source programmatic CAD. It has been adopted by most major CAD kernels.
 
@@ -24,7 +24,7 @@ them well. For this reason, the CLJS API generally also works on non-promise obj
 You need include the native [Manifold Bindings](https://github.com/SovereignShop/manifold) for your platform separately. For example:
 
 ``` clojure
-{:deps {org.clojars.cartesiantheatrics/manifold3d$linux-TBB-cuda-x86_64 {:mvn/version "1.0.57"}}}
+{:deps {org.clojars.cartesiantheatrics/manifold3d$linux-cuda-x86_64 {:mvn/version "1.0.64"}}}
 ```
 
 The Manifold .so libs are included in the bindings jar. To export meshes you'll need to have libassimp installed on your system:

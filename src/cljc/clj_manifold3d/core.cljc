@@ -528,6 +528,13 @@
      (MatrixTransforms/InvertTransform m)))
 
 #?(:clj
+   (defn compose-frames
+     "Compose transform frames. (~= (compose-frames (-> (frame 1) A) (-> (frame 1) B)) (-> (frame 1) A B)) for any sequences of
+  transformations A and B."
+     [f g]
+     (MatrixTransforms/CombineTransforms f g)))
+
+#?(:clj
    (defn center
      "Center Manifold or CrossSection along x, y, and/or z axes. `axes` is a set that specifies which axes to center along. Defaults
   to X and Y axes. CLJ only."
