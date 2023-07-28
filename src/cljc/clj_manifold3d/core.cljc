@@ -555,22 +555,29 @@
      :cljs (update-manifold manifold (fn [man] (.getMesh man)))))
 
 (defn cross-section
-  "Construct a Cross Section. `polygon` is a sequence of [[x y] ...] points ordered CCW.
+  "Construct a Cross Section. `polygon-or-polygons` is either a sequence of [[x y] ...] points or sequence of
+  [[[x y] ...] ...]. When providing multiple polygons, holes are automatically infered.
   `fill-rule` determines the algorithm used to interpret self-intersecting polygons
   (which should generally be avoided)."
-  ([polygon]
-   (cross-section polygon :non-zero))
-  ([polygon fill-rule]
-   #?(:clj (CrossSection. (SimplePolygon/FromArray (double-array (sequence cat polygon)))
-                          (case fill-rule
-                            :non-zero 0
-                            :positive 1
-                            :negative 2
-                            (throw (IllegalArgumentException. "fill-rule should be :non-zero, :positive or :negative"))))
+  ([polygon-or-polygons]
+   (cross-section polygon-or-polygons :non-zero))
+  ([polygon-or-polygons fill-rule]
+   #?(:clj
+      (CrossSection. (if (number? (ffirst polygon-or-polygons))
+                       (SimplePolygon/FromArray (double-array (sequence cat polygon-or-polygons)))
+                       (let [polys (Polygons.)]
+                         (doseq [pts polygon-or-polygons]
+                           (.pushBack polys (SimplePolygon/FromArray (double-array (sequence cat pts)))))
+                         polys))
+                     (case fill-rule
+                       :non-zero 0
+                       :positive 1
+                       :negative 2
+                       (throw (IllegalArgumentException. "fill-rule should be :non-zero, :positive or :negative"))))
       :cljs (update-manifold *manifold-module*
                              (fn [module]
                                (.setup module)
-                               (module.CrossSection. (clj->js polygon) fill-rule))))))
+                               (module.CrossSection. (clj->js polygon-or-polygons) fill-rule))))))
 
 (defn circle
   "Construct a circle of `circular-segments` edges centered on the xy plane."

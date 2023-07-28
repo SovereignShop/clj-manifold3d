@@ -3,9 +3,7 @@
 
 # clj-manifold3d
 
-This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. The CLJ implementation is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold. The CLJS implementation is based on emscripten build of Manifold for wasm. 
-
-It currently only includes Linux builds of Manifold. I intend to support other environments soon.
+This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. The CLJ implementation is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold. The CLJS implementation is based on emscripten build of Manifold for wasm.
 
 It implements most of the library functionality, plus extends it to support native convex hulls (2D and 3D), partial
 revolutions, polyhedrons, and n-section lofts. It provides nearly a full superset of OpenSCAD functionality, making migration as easy as possible.
@@ -24,13 +22,27 @@ them well. For this reason, the CLJS API generally also works on non-promise obj
 You need include the native [Manifold Bindings](https://github.com/SovereignShop/manifold) for your platform separately. For example:
 
 ``` clojure
+;; Linux
 {:deps {org.clojars.cartesiantheatrics/manifold3d$linux-cuda-x86_64 {:mvn/version "1.0.64"}}}
+;; Mac
+{:deps {org.clojars.cartesiantheatrics/manifold3d$mac-x86_64 {:mvn/version "1.0.64"}}}
+;; See build artifacts for experimental Windows jars: https://github.com/SovereignShop/manifold/actions
 ```
 
-The Manifold .so libs are included in the bindings jar. To export meshes you'll need to have libassimp installed on your system:
+The Manifold .so libs are included in the bindings jar. You'll also need to have libassimp installed on your system:
 
 ``` sh
+;; Ubuntu
 sudo apt install libassimp-dev
+;; Mac
+brew install pkg-config assimp
+;; Windows
+git clone https://github.com/assimp/assimp.git
+cd assimp
+git checkout v5.2.5
+cmake CMakeLists.txt -DASSIMP_BUILD_ZLIB=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+cmake --install . --config Release
 ```
 
 The ClojureScript lib is not yet well supported or available via. Maven. You'll have to clone the repo and move `public/manifold.wasm` into `public/js/`. Run `npm install` to install the gltf (for rendering meshes) then connect via. shadow. There's a half-baked function called `createGLTF` in `manifold_viewer.js` that will take a manifold and throw it onto the `model-viewer` element defined in the index.html.
