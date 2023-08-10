@@ -30,8 +30,7 @@
                           :extension "jar"}
                          {:file-path "pom.xml"
                           :extension "pom"}]
-                        (badigeon.sign/sign {:command "gpg"
-                                             :gpg-key "120A7E7A7D1722C5"}))]
+                        (badigeon.sign/sign {:command "gpg"}))]
       (deploy/deploy 'org.clojars.cartesiantheatrics/clj-manifold3d
                      version
                      artifacts

@@ -86,7 +86,7 @@
 
 #?(:clj
    (defn- integer-vec4-sequence-to-native-integer-buffer
-     "Maps a sequence of 3-sequences to a flat native-ordered row-major integer buffer."
+     "Maps a sequence of 4-sequences to a flat native-ordered row-major integer buffer."
      [col]
      (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Integer/BYTES))
                    (.order (ByteOrder/nativeOrder))
@@ -311,12 +311,12 @@
      (update-manifold manifold (fn [man] (.warp man func)))))
 
 (defn hull
-  "Takes two or more Manifolds or CrossSection and returns their convex hull."
-  ([a] (if (sequential? a) (apply hull a)
-           (cond (manifold? a) (ConvexHull/ConvexHull ^Manifold a)
-                 (cross-section? a) (ConvexHull/ConvexHull ^CrossSection a)
-                 :else
-                 (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))))
+  "Takes one or more Manifolds or CrossSections and returns their convex hull."
+  #?(:clj ([a] (if (sequential? a) (apply hull a)
+                   (cond (manifold? a) (ConvexHull/ConvexHull ^Manifold a)
+                         (cross-section? a) (ConvexHull/ConvexHull ^CrossSection a)
+                         :else
+                         (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a))))))))
   ([a b]
    #?(:clj (cond (manifold? a) ^Manifold (ConvexHull/ConvexHull ^Manifold a ^Manifold b)
                  (cross-section? a) ^CrossSection (ConvexHull/ConvexHull ^CrossSection a ^CrossSection b)
@@ -415,7 +415,7 @@
    #?(:clj (cond (manifold? obj) (.boundingBox ^Manifold obj)
                  (cross-section? obj) (.bounds ^CrossSection obj)
                  :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Received: " (type obj)))))
-      :cljs (update-manifold manifold
+      :cljs (update-manifold obj
                              (fn [man]
                                (.boundingBox man))))))
 
