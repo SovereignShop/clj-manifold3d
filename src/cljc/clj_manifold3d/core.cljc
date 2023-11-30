@@ -9,7 +9,7 @@
   Working with promises can be pretty annoying, especially without a type system that supports
   them well. For this reason, the CLJS API generally also works on non-promise objects."
   #?(:clj (:import
-           [manifold3d Manifold MeshUtils ManifoldVector ConvexHull]
+           [manifold3d Manifold MeshUtils ManifoldVector]
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
            [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
@@ -313,13 +313,12 @@
 (defn hull
   "Takes one or more Manifolds or CrossSections and returns their convex hull."
   #?(:clj ([a] (if (sequential? a) (apply hull a)
-                   (cond (manifold? a) (ConvexHull/ConvexHull ^Manifold a)
-                         (cross-section? a) (ConvexHull/ConvexHull ^CrossSection a)
+                   (cond (manifold? a) (.convexHull ^Manifold a)
                          :else
                          (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a))))))))
   ([a b]
-   #?(:clj (cond (manifold? a) ^Manifold (ConvexHull/ConvexHull ^Manifold a ^Manifold b)
-                 (cross-section? a) ^CrossSection (ConvexHull/ConvexHull ^CrossSection a ^CrossSection b)
+   #?(:clj (cond (manifold? a) ^Manifold (.convexHull ^Manifold a ^Manifold b)
+                 (cross-section? a) ^CrossSection (.convexHull ^CrossSection a ^CrossSection b)
                  :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
       :cljs (.then (js/Promise.all #js [a b])
                    (fn [[a b]]
