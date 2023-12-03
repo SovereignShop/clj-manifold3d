@@ -321,13 +321,13 @@
                  (let [v (doto (ManifoldVector.)
                            (.pushBack a)
                            (.pushBack b))]
-                   ^Manifold (.convexHull ^Manifold a ^ManifoldVector v))
+                   ^Manifold (Manifold/ConvexHull ^ManifoldVector v))
 
                  (cross-section? a)
                  (let [v (doto (CrossSectionVector.)
                            (.pushBack a)
                            (.pushBack b))]
-                   ^CrossSection  (.convexHull ^CrossSection a ^CrossSectionVector v))
+                   ^CrossSection  (CrossSection/ConvexHull ^CrossSectionVector v))
 
                  :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
       :cljs (.then (js/Promise.all #js [a b])
@@ -335,10 +335,15 @@
                      (.convexHull a b)))))
   ([a b & more]
    #?(:clj
-      (let [v (if (manifold? a) (ManifoldVector.) (CrossSectionVector.))]
-        (doseq [section (list* a b more)]
-          (.pushBack v section))
-        (.convexHull a v))
+      (if (manifold? a)
+        (let [^ManifoldVector v (ManifoldVector.)]
+          (doseq [man (list* a b more)]
+            (.pushBack v man))
+          ^Manifold (Manifold/ConvexHull v))
+        (let [^CrossSectionVector v (CrossSectionVector.)]
+          (doseq [section (list* a b more)]
+            (.pushBack v section))
+          ^CrossSection (CrossSection/ConvexHull v)))
       :cljs (reduce hull (hull a b) more))))
 
 (defn union
