@@ -5,17 +5,10 @@
 
 This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. The CLJ implementation is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold. The CLJS implementation is based on emscripten build of Manifold for wasm.
 
-It implements most of the library functionality, plus extends it to support native convex hulls (2D and 3D), partial
-revolutions, polyhedrons, and n-section lofts. It provides nearly a full superset of OpenSCAD functionality, making migration as easy as possible.
+It implements most of the library functionality, plus extends it to support polyhedrons and lofts. It provides nearly a full superset of OpenSCAD functionality (except no text support yet).
 
 Manifold represents a dramatic advance in the state-of-the-art of open-source programmatic CAD. It has been adopted by most major CAD kernels.
 
-The library aspires to achieve code compatibility between Clojure and ClojureScript so that models
-build in the more friendly Java environment can be shared and distributed in the javascript
-environment. However, there are challenges in the way the Manifold js library is provided
-as a promise. To (mostly) support this, this library elects to accept promises at the API level.
-Working with promises can be pretty annoying, especially without a type system that supports
-them well. For this reason, the CLJS API generally also works on non-promise objects.
 
 # Install
 
@@ -23,9 +16,9 @@ You need include the native [Manifold Bindings](https://github.com/SovereignShop
 
 ``` clojure
 ;; Linux
-{:deps {org.clojars.cartesiantheatrics/manifold3d$linux-cuda-x86_64 {:mvn/version "1.0.64"}}}
+{:deps {org.clojars.cartesiantheatrics/manifold3d$linux-cuda-x86_64 {:mvn/version "1.0.72"}}}
 ;; Mac
-{:deps {org.clojars.cartesiantheatrics/manifold3d$mac-x86_64 {:mvn/version "1.0.64"}}}
+{:deps {org.clojars.cartesiantheatrics/manifold3d$mac-x86_64 {:mvn/version "1.0.72"}}}
 ;; See build artifacts for experimental Windows jars: https://github.com/SovereignShop/manifold/actions
 ```
 
