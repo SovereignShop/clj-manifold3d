@@ -350,13 +350,15 @@
   "Returns the union of input Manifolds or CrossSections."
   ([a] (if (sequential? a) (apply union a) a))
   ([a b]
-   #?(:clj (impl/union a b)
+   #?(:clj (impl/union (impl/to-csg a) #?(:clj (impl/to-csg b) :cljs b))
       :cljs (.then (js/Promise.all #js [*manifold-module* a b])
                    (fn [[module & args]]
                      (.setup module)
                      (.union module args)))))
   ([a b & more]
-   #?(:clj (impl/batch-boolean a (cons b more) OpType/Add)
+   #?(:clj (impl/batch-boolean (impl/to-csg a)
+                               (cons (impl/to-csg b) (map impl/to-csg more))
+                               OpType/Add)
       :cljs (.then (js/Promise.all (list* *manifold-module* a b more))
                    (fn [[module & args]]
                      (.setup module)
@@ -364,15 +366,17 @@
 
 (defn difference
   "Returns the difference between first input `Manifold` or `CrossSection` and rest."
-  ([a] (if (sequential? a) (apply difference a) a))
+  ([a] (if (sequential? a) (apply difference a) #?(:clj (impl/to-csg a) :cljs a)))
   ([a b]
-   #?(:clj (impl/difference a b)
+   #?(:clj (impl/difference (impl/to-csg a) (impl/to-csg b))
       :cljs (.then (js/Promise.all #js [*manifold-module* a b])
                    (fn [[module & args]]
                      (.setup module)
                      (.difference module args)))))
   ([a b & more]
-   #?(:clj (impl/batch-boolean a (cons b more) OpType/Subtract)
+   #?(:clj (impl/batch-boolean (impl/to-csg a)
+                               (cons (impl/to-csg b) (map impl/to-csg more))
+                               OpType/Subtract)
       :cljs (.then (js/Promise.all (list* *manifold-module* a b more))
                    (fn [[module & args]]
                      (.setup module)
@@ -380,12 +384,14 @@
 
 (defn intersection
   "Returns the intersection of all input `Manifold`s or `CrossSection`s."
-  ([a] (if (sequential? a) (apply intersection a) a))
-  ([a b] #?(:clj (impl/intersection a b)
+  ([a] (if (sequential? a) (apply intersection a) #?(:clj (impl/to-csg a) :cljs a)))
+  ([a b] #?(:clj (impl/intersection (impl/to-csg a) (impl/to-csg b))
             :cljs (.then (js/Promise.all #js [*manifold-module* a b])
                          (fn [[module & args]] (.intersection module args)))))
   ([a b & more]
-   #?(:clj (impl/batch-boolean a (cons b more) OpType/Intersect)
+   #?(:clj (impl/batch-boolean (impl/to-csg a)
+                               (cons (impl/to-csg b) (map impl/to-csg more))
+                               OpType/Intersect)
       :cljs (.then (js/Promise.all (list* *manifold-module* a b more))
                    (fn [[module & args]]
                      (.setup module)

@@ -15,6 +15,15 @@
   (difference [x y])
   (intersection [x y]))
 
+(defprotocol ICSGConvertable
+  (to-csg [this] "Converts to a CSG object (Manifold or CrossSection)"))
+
+(extend-protocol ICSGConvertable
+  Manifold
+  (to-csg [this] this)
+  CrossSection
+  (to-csg [this] this))
+
 (extend-protocol ICSG
   Manifold
   (batch-boolean [this xs op]
@@ -32,6 +41,7 @@
     (.intersect this o))
 
   CrossSection
+  (to-csg [this] this)
   (batch-boolean [this xs op]
     (CrossSection/BatchBoolean
      (let [v (CrossSectionVector.)]
