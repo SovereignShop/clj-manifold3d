@@ -319,11 +319,12 @@
 
 (defn hull
   "Takes one or more Manifolds or CrossSections and returns their convex hull."
-  #?(:clj ([a] (let [csg (impl/to-csg a)]
-                 (if (sequential? csg) (apply hull csg)
-                     (cond (manifold? csg) (.convexHull ^Manifold csg)
-                           :else
-                           (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type csg)))))))))
+  #?(:clj ([a]
+           (if (sequential? a) (apply hull a)
+               (let [csg (impl/to-csg a)]
+                 (cond (manifold? csg) (.convexHull ^Manifold csg)
+                       :else
+                       (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type csg)))))))))
   ([a b]
    #?(:clj (let [ca (impl/to-csg a)
                  cb (impl/to-csg b)]
@@ -673,7 +674,7 @@
   DoubleVec2 objects as vertices. Use (.x vert) and (.y vert) to get x,y coordinates.
   This function has substantial JNI overhead. CLJ only."
      [cross-section]
-     (seq (.toPolygons ^CrossSection cross-section))))
+     (impl/to-polygons cross-section)))
 
 #?(:clj
    (defn status

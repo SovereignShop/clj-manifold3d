@@ -21,11 +21,6 @@
 (defprotocol IToPolygons
   (to-polygons [this]))
 
-(extend-protocol IToPolygons
-  CrossSection
-  (to-polygons [this]
-    (.toPolygons this)))
-
 (extend-protocol ICSGConvertable
   Manifold
   (to-csg [this] this)
@@ -63,6 +58,11 @@
     (.subtract this o))
   (intersection [this o]
     (.intersect this o)))
+
+(extend-protocol IToPolygons
+  CrossSection
+  (to-polygons [this]
+    (.toPolygons this)))
 
 (extend-protocol ITransformable
   CrossSection
