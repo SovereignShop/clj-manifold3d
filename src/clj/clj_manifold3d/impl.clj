@@ -18,6 +18,14 @@
 (defprotocol ICSGConvertable
   (to-csg [this] "Converts to a CSG object (Manifold or CrossSection)"))
 
+(defprotocol IToPolygons
+  (to-polygons [this]))
+
+(extend-protocol IToPolygons
+  CrossSection
+  (to-polygons [this]
+    (.toPolygons this)))
+
 (extend-protocol ICSGConvertable
   Manifold
   (to-csg [this] this)

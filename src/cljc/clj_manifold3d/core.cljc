@@ -106,6 +106,12 @@
                    i x]
              (instance? mod.Manifold i))))
 
+#?(:clj
+   (defn csg?
+     "Retruns true if `x` is convertable to csg object."
+     [x]
+     (satisfies? impl/ICSGConvertable x)))
+
 (defn cross-section?
   "Returns true if `x` is a `CrossSection`."
   [x]
@@ -245,7 +251,7 @@
   ([cross-section height n-divisions twist-degrees]
    (extrude cross-section height n-divisions twist-degrees [1.0 1.0]))
   ([cross-section height n-divisions twist-degrees scale-top]
-   #?(:clj (Manifold/Extrude cross-section height n-divisions twist-degrees (DoubleVec2. (nth scale-top 0) (nth scale-top 1)))
+   #?(:clj (Manifold/Extrude (impl/to-csg cross-section) height n-divisions twist-degrees (DoubleVec2. (nth scale-top 0) (nth scale-top 1)))
       :cljs (update-manifold (js/Promise.all [*manifold-module* cross-section])
                              (fn [[module cross-section]]
                                (.setup module)
@@ -272,10 +278,11 @@
 (defn mirror
   "Mirrors manifold/cross-section over the plane/line desribed by the normal."
   ([obj normal]
-   #?(:clj (cond (manifold? obj) (.mirror ^Manifold obj (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
-                 (cross-section? obj) (.mirror ^CrossSection obj (DoubleVec2. (nth normal 0) (nth normal 1)))
-                 :else
-                 (throw (IllegalArgumentException. "Must be Manifold or CrossSection. Recieved: " (type obj))))
+   #?(:clj (let [csg (impl/to-csg obj)]
+             (cond (manifold? csg) (.mirror ^Manifold csg (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
+                   (cross-section? csg) (.mirror ^CrossSection csg (DoubleVec2. (nth normal 0) (nth normal 1)))
+                   :else
+                   (throw (IllegalArgumentException. "Must be Manifold or CrossSection. Recieved: " (type csg)))))
       :cljs (update-manifold obj
                              (fn [man]
                                (.mirror man (clj->js normal)))))))
@@ -284,7 +291,7 @@
    (defn refine
      "partitions every edge of the Manifold into `n` edges of equal length. CLJ only."
      ([manifold n]
-      (.refine ^Manifold manifold n))))
+      (.refine ^Manifold (impl/to-csg manifold) n))))
 
 (defn revolve
   "Revolve a `CrossSection` around the y-axis to create a `Manifold`.
@@ -299,7 +306,7 @@
   ([cross-section circular-segments]
    (revolve cross-section circular-segments 360.0))
   ([cross-section circular-segments degrees]
-   #?(:clj (Manifold/Revolve cross-section circular-segments degrees)
+   #?(:clj (Manifold/Revolve (impl/to-csg cross-section) circular-segments degrees)
       :cljs (.then (js/Promise.all #js [*manifold-module* cross-section])
                    (fn [[module cross-section]]
                      (.revolve module cross-section circular-segments degrees))))))
@@ -312,24 +319,27 @@
 
 (defn hull
   "Takes one or more Manifolds or CrossSections and returns their convex hull."
-  #?(:clj ([a] (if (sequential? a) (apply hull a)
-                   (cond (manifold? a) (.convexHull ^Manifold a)
-                         :else
-                         (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a))))))))
+  #?(:clj ([a] (let [csg (impl/to-csg a)]
+                 (if (sequential? csg) (apply hull csg)
+                     (cond (manifold? csg) (.convexHull ^Manifold csg)
+                           :else
+                           (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type csg)))))))))
   ([a b]
-   #?(:clj (cond (manifold? a)
-                 (let [v (doto (ManifoldVector.)
-                           (.pushBack a)
-                           (.pushBack b))]
-                   ^Manifold (Manifold/ConvexHull ^ManifoldVector v))
+   #?(:clj (let [ca (impl/to-csg a)
+                 cb (impl/to-csg b)]
+             (cond (manifold? ca)
+                   (let [v (doto (ManifoldVector.)
+                             (.pushBack ca)
+                             (.pushBack cb))]
+                     ^Manifold (Manifold/ConvexHull ^ManifoldVector v))
 
-                 (cross-section? a)
-                 (let [v (doto (CrossSectionVector.)
-                           (.pushBack a)
-                           (.pushBack b))]
-                   ^CrossSection  (CrossSection/ConvexHull ^CrossSectionVector v))
+                   (cross-section? ca)
+                   (let [v (doto (CrossSectionVector.)
+                             (.pushBack ca)
+                             (.pushBack cb))]
+                     ^CrossSection  (CrossSection/ConvexHull ^CrossSectionVector v))
 
-                 :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type a)))))
+                   :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type ca))))))
       :cljs (.then (js/Promise.all #js [a b])
                    (fn [[a b]]
                      (.convexHull a b)))))
@@ -566,12 +576,13 @@
      ([obj]
       (center obj #{:x :y}))
      ([obj axes]
-      (let [axes (if (set? axes) axes (into #{} axes))
-            bnds (.Center (bounds obj))
+      (let [csg (impl/to-csg obj)
+            axes (if (set? axes) axes (into #{} axes))
+            bnds (.Center (bounds csg))
             tr (cond-> [(if (contains? axes :x) (- (.x bnds)) 0)
                         (if (contains? axes :y) (- (.y bnds)) 0)]
-                 (manifold? obj) (conj (if (contains? axes :z) (- (.z bnds)) 0)))]
-        (translate obj tr)))))
+                 (manifold? csg) (conj (if (contains? axes :z) (- (.z bnds)) 0)))]
+        (translate csg tr)))))
 
 (defn get-mesh
   "Calculates and returns the Manifold's mesh. Note that most of the CSG work is done when running this function."
@@ -682,12 +693,13 @@
        10 :FaceIDWrongLength
        11 :InvalidConstruction)))
 
-(defn- >polygons [x]
-  (cond (cross-section? x) (.toPolygons ^CrossSection x)
-        (sequential? x) (let [pv (Polygons.)]
-                          (doseq [poly (if (number? (ffirst x)) [x] x)]
-                            (.pushBack pv (SimplePolygon/FromBuffer (double-vec2-sequence-to-native-double-buffer poly))))
-                          pv)))
+#?(:clj
+   (defn- >polygons [x]
+     (cond (satisfies? impl/IToPolygons x) (to-polygons x)
+           (sequential? x) (let [pv (Polygons.)]
+                             (doseq [poly (if (number? (ffirst x)) [x] x)]
+                               (.pushBack pv (SimplePolygon/FromBuffer (double-vec2-sequence-to-native-double-buffer poly))))
+                             pv))))
 
 #?(:clj
    (defn loft
@@ -763,7 +775,7 @@
   and colinear points will be removed. It is recommended to apply this function after `offset`, especially when
   offseting with join-type = :miter. CLJ only."
      [cross-section epsilon]
-     (.simplify ^CrossSection cross-section epsilon)))
+     (.simplify ^CrossSection (impl/to-csg cross-section) epsilon)))
 
 #?(:clj
    (defn material
