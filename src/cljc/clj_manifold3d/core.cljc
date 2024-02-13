@@ -323,6 +323,7 @@
            (if (sequential? a) (apply hull a)
                (let [csg (impl/to-csg a)]
                  (cond (manifold? csg) (.convexHull ^Manifold csg)
+                       (cross-section? csg) (.convexHull ^CrossSection csg)
                        :else
                        (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type csg)))))))))
   ([a b]
