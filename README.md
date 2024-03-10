@@ -16,7 +16,7 @@ You need include the native [Manifold Bindings](https://github.com/SovereignShop
 
 ``` clojure
 ;; Linux
-{:deps {org.clojars.cartesiantheatrics/manifold3d$linux-cuda-x86_64 {:mvn/version "1.0.72"}}}
+{:deps {org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.72"}}}
 ;; Mac
 {:deps {org.clojars.cartesiantheatrics/manifold3d$mac-x86_64 {:mvn/version "1.0.72"}}}
 ;; See build artifacts for experimental Windows jars: https://github.com/SovereignShop/manifold/actions

@@ -476,6 +476,18 @@
                                  (.trimByPlane man #js [x y z] origin-offset)))))))
 
 #?(:clj
+   (defn slice
+     "Returns the cross-section of `manifold` that intersects the xy plane."
+     [manifold]
+     ^CrossSection (.slice ^Manifold (impl/to-csg manifold))))
+
+#?(:clj
+   (defn project
+     "Returns the 2D projection of `manifold` onto the xy plane."
+     [manifold]
+     ^CrossSection (.project ^Manifold (impl/to-csg manifold))))
+
+#?(:clj
    (defn split-by-plane
      "Splits manifold two using the plane defined by the `normal`, offset by `origin-offset` in
   the direction of the normal. CLJ only."
