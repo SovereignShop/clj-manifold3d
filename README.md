@@ -50,7 +50,7 @@ See the core namespace for some documentation. Refer to the original library for
 
 # Examples
 
-Examples should look very familiar if you've ever used OpenSCAD. Bellow are demonstrations of some of the operations that are currently unavailable in Manifold.
+Examples should look very familiar if you've ever used OpenSCAD.
 
 2D hulls:
 
@@ -130,3 +130,14 @@ Loft:
 ```
 
 ![Partial revolve](resources/images/loft-example.png)
+
+
+# Example Projects
+
+A Simple rapidly printable hydroponic tower:
+https://github.com/SovereignShop/spiralized-hydroponic-tower
+
+Kossel delta printer:
+https://github.com/SovereignShop/kossel-printer/
+
+
