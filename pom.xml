@@ -1,52 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-      
-  
+
+  <licenses>
+      <license>
+          <name>The Apache Software License, Version 2.0</name>
+          <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+          <distribution>repo</distribution>
+          <comments>A business-friendly OSS license</comments>
+      </license>
+  </licenses>
+
   <modelVersion>4.0.0</modelVersion>
-      
-  
   <groupId>org.clojars.cartesiantheatrics</groupId>
-      
-  
   <artifactId>clj-manifold3d</artifactId>
-      
-  
   <scm>
-            
-    
     <url>https://github.com/SovereignShop/clj-manifold3d.git</url>
-            
-    
     <connection>scm:git:git://github.com/SovereignShop/clj-manifold3d</connection>
-            
-    
     <developerConnection>scm:git:ssh://git@github.com/SovereignShop/clj-manifold3d</developerConnection>
-            
-    
     <tag>0.0.8</tag>
-          
-  
   </scm>
-      
-  
-  <version>0.0.12</version>
-      
-  
-  <dependencies>
-    <dependency>
-      <groupId>org.clojars.cartesiantheatrics</groupId>
-      <artifactId>manifold3d</artifactId>
-      <version>1.0.9</version>
-    </dependency>
-  </dependencies>
-      
-  
+  <version>0.0.16</version>
+  <dependencies/>
   <repositories>
     <repository>
       <id>clojars</id>
       <url>https://repo.clojars.org/</url>
     </repository>
   </repositories>
-    
-
 </project>
