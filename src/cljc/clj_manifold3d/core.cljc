@@ -275,6 +275,30 @@
                                (.setup module)
                                (.smooth module mesh (clj->js sharpened-edges)))))))
 
+#?(:clj
+   (defn smooth-out
+     "Smooths out the Manifold by filling in the halfedgeTangent vectors. The
+  geometry will remain unchanged until refine or refine-to-length is called to
+interpolate the surface. This version uses the geometry of the triangles and
+pseudo-normals to define the tangent vectors.
+
+  `min-sharp-angle` degrees, default 60. Any edges with angles greater than
+      this value will remain sharp. The rest will be smoothed to G1 continuity,
+      with the caveat that flat faces of three or more triangles will always remain
+      flat. With a value of zero, the model is faceted, but in this case there is
+      no point in smoothing.
+
+  `min-smoothness` range: 0 - 1, default 0. The smoothness applied to sharp
+      angles. The default gives a hard edge, while values > 0 will give a small
+      fillet on these sharp edges. A value of 1 is equivalent to a minSharpAngle of
+      180 - all edges will be smooth."
+     ([^Manifold manifold]
+      (smooth-out manifold 60))
+     ([^Manifold manifold min-sharp-angle]
+      (smooth-out manifold min-sharp-angle 0))
+     ([^Manifold manifold min-sharp-angle min-smoothness]
+      (.smoothOut manifold min-sharp-angle min-smoothness))))
+
 (defn mirror
   "Mirrors manifold/cross-section over the plane/line desribed by the normal."
   ([obj normal]
@@ -292,6 +316,34 @@
      "partitions every edge of the Manifold into `n` edges of equal length. CLJ only."
      ([manifold n]
       (.refine ^Manifold (impl/to-csg manifold) n))))
+
+#?(:clj
+   (defn calculate-normals
+     "Fills in vertex properties for normal vectors, calculated from the mesh
+ geometry. Flat faces composed of three or more triangles will remain flat.
+
+  `normal-idx` The property channel in which to store the X
+ values of the normals. The X, Y, and Z channels will be sequential. The
+ property set will be automatically expanded such that NumProp will be at
+ least normalIdx + 3.
+
+  `min-sharp-angle` Any edges with angles greater than this value will
+ remain sharp, getting different normal vector properties on each side of the
+ edge. By default, no edges are sharp and all normals are shared. With a value
+ of zero, the model is faceted and all normals match their triangle normals,
+ but in this case it would be better not to calculate normals at all."
+     ([^Manifold manifold normal-idx min-sharp-angle]
+      (.calculateNormals manifold normal-idx min-sharp-angle))))
+
+#?(:clj
+   (defn refine-to-length
+     "Increase the density of the mesh by splitting each edge into pieces of
+roughly the input `length`. Interior verts are added to keep the rest of the
+triangulation edges also of roughly the same length. If halfedgeTangents are
+present (e.g. from the Smooth() constructor), the new vertices will be moved
+to the interpolated surface according to their barycentric coordinates."
+     [^Manifold manifold length]
+     (.refineToLength manifold length)))
 
 (defn revolve
   "Revolve a `CrossSection` around the y-axis to create a `Manifold`.
@@ -478,8 +530,10 @@
 #?(:clj
    (defn slice
      "Returns the cross-section of `manifold` that intersects the xy plane."
-     [manifold]
-     ^CrossSection (.slice ^Manifold (impl/to-csg manifold))))
+     ([manifold]
+      ^CrossSection (.slice ^Manifold (impl/to-csg manifold)))
+     ([manifold height]
+      ^CrossSection (.slice ^Manifold (impl/to-csg manifold) height))))
 
 #?(:clj
    (defn project
@@ -521,7 +575,7 @@
   This approach makes it easy to define \"paths\" of frames, where the next frame in the path is a function of the previous frame.
   "
      ([]
-      (DoubleMat4x3.))
+      (DoubleMat4x3. 1))
      ([v]
       (DoubleMat4x3. v))
      ([rx ry rz tr]
@@ -538,9 +592,11 @@
    (defn frame-2d
      "Create a matrix representing a 2D affine transformation."
      ([]
-      (DoubleMat3x2.))
+      (DoubleMat3x2. 1))
      ([x]
       (DoubleMat3x2. x))
+     ([rx tr]
+      (frame-2d rx [(nth rx 1) (- (nth rx 0))] tr))
      ([rx ry tr]
       (DoubleMat3x2. (DoubleVec2. (nth rx 0) (nth rx 1))
                      (DoubleVec2. (nth ry 0) (nth ry 1))
@@ -556,7 +612,7 @@
       :cljs (update-manifold x (fn [o] (.translate o (clj->js tv)))))))
 
 (defn rotate
-  "Rotates a `Manifold`, `CrossSection` or transform frame by the given rotation vector.
+  "Rotates a `Manifold`, `CrossSection` or transform frame by the given rotation vector or number.
 
   Note that rotations of transform matrices are done 'in place', i.e. the [x y z] position is
   unchanged. You can interpret the rotation columns of the frame as the axes of a coordinate
@@ -580,8 +636,10 @@
    (defn compose-frames
      "Compose transform frames. (~= (compose-frames (-> (frame 1) A) (-> (frame 1) B)) (-> (frame 1) A B)) for any sequences of
   transformations A and B."
-     [f g]
-     (MatrixTransforms/CombineTransforms f g)))
+     ([f g]
+      (MatrixTransforms/CombineTransforms f g))
+     ([f g & more]
+      (reduce compose-frames (compose-frames f g) more))))
 
 #?(:clj
    (defn center
@@ -604,6 +662,21 @@
   #?(:clj (.getMesh ^Manifold manifold)
      :cljs (update-manifold manifold (fn [man] (.getMesh man)))))
 
+#?(:clj
+   (defn get-mesh-gl
+     "Calculates and returns the Manifold's mesh. Note that most of the CSG work is done when running this function."
+     [manifold normalIdx]
+     (.getMeshGL ^Manifold manifold (DoubleVec3. (nth normalIdx 0) (nth normalIdx 1) (nth normalIdx 1)))))
+
+#?(:clj
+   (defn- fill-rule->enum [fill-rule]
+     (case fill-rule
+       :even-odd 0
+       :non-zero 1
+       :positive 2
+       :negative 3
+       (throw (IllegalArgumentException. "fill-rule should be :even-odd, :non-zero, :positive or :negative")))))
+
 (defn cross-section
   "Construct a Cross Section. `polygon-or-polygons` is either a sequence of [[x y] ...] points or sequence of
   [[[x y] ...] ...]. When providing multiple polygons, holes are automatically infered.
@@ -619,15 +692,41 @@
                          (doseq [pts polygon-or-polygons]
                            (.pushBack polys (SimplePolygon/FromArray (double-array (sequence cat pts)))))
                          polys))
-                     (case fill-rule
-                       :non-zero 0
-                       :positive 1
-                       :negative 2
-                       (throw (IllegalArgumentException. "fill-rule should be :non-zero, :positive or :negative"))))
+                     (fill-rule->enum fill-rule))
       :cljs (update-manifold *manifold-module*
                              (fn [module]
                                (.setup module)
                                (module.CrossSection. (clj->js polygon-or-polygons) fill-rule))))))
+
+#?(:clj
+   (defn text
+     "Render `text` to a CrossSection using the provided `font-file`. `pixel-height` is a
+  freetype size in pixels. Use scale-to-height to scale a text bounding box to a height in mm. `interp-res`
+  specifies the numbers steps of interpolation of bezier curves. `fill-rule` determines how polygons are filled
+  (should be left :even-odd in most cases)."
+     ([font-file text-str]
+      (text font-file text-str 10))
+     ([font-file text-str pixel-height]
+      (text font-file text-str pixel-height 10))
+     ([font-file text-str pixel-height interp-res]
+      (text font-file text-str pixel-height interp-res :even-odd))
+     ([font-file text-str pixel-height interp-res fill-rule]
+      (CrossSection/Text font-file text-str pixel-height interp-res (fill-rule->enum fill-rule)))))
+
+(defn scale-to-height
+  "Scale a CrossSection or Manifold to a given height. Height corresponds to y axis for CrossSection, z axis for Manifold."
+  [obj height]
+  (cond (cross-section? obj)
+        (let [bnd (bounds ^CrossSection obj)
+              size (.Size bnd)
+              y (.y size)]
+          (scale obj [(/ height y) (/ height y)]))
+        (manifold? obj)
+        (let [box (.boundingBox ^Manifold obj)
+              size (.Size box)
+              z (.z size)
+              scale-factor (/ height z)]
+          (scale obj [scale-factor scale-factor scale-factor]))))
 
 (defn circle
   "Construct a circle of `circular-segments` edges centered on the xy plane."

@@ -9,7 +9,9 @@
 
   :clj-dev
   {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}
-                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.73"}}
+                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.77"}
+                ;; org.clojars.cartesiantheatrics/manifold3d {:local/root "../manifold/bindings/java/target/manifold3d-1.0.39.jar"}
+                }
    :extra-paths ["build" "test/cljc" "examples/"]}
 
   :clj-deploy

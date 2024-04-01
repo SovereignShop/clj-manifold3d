@@ -87,4 +87,12 @@
   (translate [this tv]
     (MatrixTransforms/Translate this (DoubleVec3. (nth tv 0) (nth tv 1) (nth tv 2))))
   (transform [this matrix]
-    (MatrixTransforms/Transform this matrix)))
+    (MatrixTransforms/CombineTransforms this matrix))
+
+  DoubleMat3x2
+  (rotate [this angle]
+    (MatrixTransforms/Rotate this angle))
+  (translate [this tv]
+    (MatrixTransforms/Translate this (DoubleVec2. (nth tv 0) (nth tv 1))))
+  (transform [this matrix]
+    (MatrixTransforms/CombineTransforms this matrix)))
