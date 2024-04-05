@@ -665,8 +665,10 @@ to the interpolated surface according to their barycentric coordinates."
 #?(:clj
    (defn get-mesh-gl
      "Calculates and returns the Manifold's mesh. Note that most of the CSG work is done when running this function."
-     [manifold normalIdx]
-     (.getMeshGL ^Manifold manifold (DoubleVec3. (nth normalIdx 0) (nth normalIdx 1) (nth normalIdx 1)))))
+     ([manifold]
+      (.getMeshGL ^Manifold manifold (IntegerVec3. 0 1 2)))
+     ([manifold normalIdx]
+      (.getMeshGL ^Manifold manifold (IntegerVec3. (nth normalIdx 0) (nth normalIdx 1) (nth normalIdx 1))))))
 
 #?(:clj
    (defn- fill-rule->enum [fill-rule]

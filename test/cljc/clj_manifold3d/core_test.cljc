@@ -1,8 +1,10 @@
 (ns clj-manifold3d.core-test
-  (:require [clojure.test :refer [deftest is testing]]
-            [clj-manifold3d.core :refer [mesh cube get-mesh manifold get-properties mirror union scale
-                                         compose decompose translate
-                                         smooth sphere refine cylinder polyhedron export-mesh tetrahedron]]))
+  (:require
+   [clojure.test :refer [deftest is testing]]
+   [clojure.java.io :as io]
+   [clj-manifold3d.core :refer [mesh cube get-mesh manifold get-properties mirror union scale
+                                compose decompose translate get-mesh-gl get-mesh import-mesh
+                                smooth sphere refine cylinder polyhedron export-mesh tetrahedron]]))
 
 (defn- glm-to-vectors [v]
   (for [i (range (.size v))]
@@ -109,3 +111,21 @@
         scaled-props (get-properties scaled)]
     (is (about= (:volume (get-properties (cube (* w factor) (* w factor) (* w factor))))
                 (:volume scaled-props)))))
+
+(deftest test-get-mesh-gl
+  (let [w 20
+        m (cube w w w)
+        test-file-name  "test/data/cube-gl-mesh.glb"
+        mesh (get-mesh-gl m [0 1 2])
+        _  (get-mesh-gl m)]
+    (try
+      (export-mesh mesh test-file-name)
+      (is
+       (about=
+        (* w w w)
+        (-> (import-mesh test-file-name)
+            (manifold)
+            (get-properties)
+            (:volume))))
+      (finally
+        (io/delete-file test-file-name)))))
