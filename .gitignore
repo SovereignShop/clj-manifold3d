@@ -10,7 +10,6 @@ resources/
 
 .clj-kondo/
 .cpcache/
-.github/
 .lsp/
 .nrepl-port
 .shadow-cljs/
