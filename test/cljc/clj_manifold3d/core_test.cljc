@@ -1,7 +1,7 @@
 (ns clj-manifold3d.core-test
   (:require [clojure.test :refer [deftest is testing]]
             [clj-manifold3d.core :refer [mesh cube get-mesh manifold get-properties mirror union scale
-                                         compose
+                                         compose decompose translate
                                          smooth sphere refine cylinder polyhedron export-mesh tetrahedron]]))
 
 (defn- glm-to-vectors [v]
@@ -70,10 +70,11 @@
 
 (deftest test-cylinder
   (let [r 5
-        c (cylinder 20 r r 200)
+        h 10
+        c (cylinder h r r 500)
         p (get-properties c)]
-    ;; Note volume is dependent on nuber of circular segments.
-    (is (about= (:volume p) (* Math/PI (Math/pow r 2) 20) 0.2))))
+    ;; Note volume is dependent on number of circular segments.
+    (is (about= (:volume p) (* Math/PI (Math/pow r 2) h) 0.2))))
 
 (deftest test-mirror
   (let [c (cube 10 10 10 false)
@@ -93,12 +94,18 @@
     (is (about= (:surface-area props) 33.38 0.1 ))))
 
 (deftest test-compose
-  (let [man (compose [(tetrahedron) (cube 1 1 1 false) (sphere 1 4)])]))
+  (let [man (compose [(scale (tetrahedron) [5 5 5])
+                      (-> (cube 1 1 1 false) (translate [0 0 10]))
+                      (-> (sphere 1 4) (translate [0 0 20]))])]
+    (is (about=
+         (transduce (map (comp :volume get-properties)) + (decompose man))
+         (:volume (get-properties man))))))
 
 (deftest test-scale
-  (let [c (cube 10 10 10)
-        unscaled-props (get-properties c)
-        scaled (scale c [2.0 2.0 2.0])
-        scaled-props (get-properteis scaled)]
-    (is (about= (* 4 (:volume unscaled-props))
+  (let [factor 2
+        w 10
+        c (cube w w w)
+        scaled (scale c [factor factor factor])
+        scaled-props (get-properties scaled)]
+    (is (about= (:volume (get-properties (cube (* w factor) (* w factor) (* w factor))))
                 (:volume scaled-props)))))

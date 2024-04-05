@@ -9,10 +9,15 @@
 
   :clj-dev
   {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}
-                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.77"}
+                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.78"}
                 ;; org.clojars.cartesiantheatrics/manifold3d {:local/root "../manifold/bindings/java/target/manifold3d-1.0.39.jar"}
                 }
    :extra-paths ["build" "test/cljc" "examples/"]}
+
+  :clj-test {:extra-paths ["test/cljc"]
+             :extra-deps  {lambdaisland/kaocha {:mvn/version "1.88.1376"}
+                           org.clojure/clojure {:mvn/version "1.11.2"}}
+             :main-opts   ["-m" "kaocha.runner"]}
 
   :clj-deploy
   {:main-opts   ["-m" "deploy"]
