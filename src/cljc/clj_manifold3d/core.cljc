@@ -825,8 +825,9 @@ to the interpolated surface according to their barycentric coordinates."
    (defn loft
      "Loft between cross sections transformed by the associated 3D transform frames.
   If a single cross-section is provided, lofts between the same cross section at each frame position.
-  It can accept either a sequence of cross-sectiosn, or a \"decomposed\" sequence of cross-sections,
-  i.e. a vector of vectors of polygons (which are vectors of points).
+  It also accepts a sequence of cross-sections, or a \"decomposed\" sequence of cross-sections,
+  i.e. a vector of vectors of polygons (which are vectors of points). Note there is a cannonical polygon
+  set for every cross section, with holes encoded by winding order.
 
   There is also an optional `algorithm` argument. Options are :eager-nearest-neighbor (default) and
   :isomorphic. :eager-nearest-neighbor cnostructs edges by eagerly adding the edge of minimum distance as it
