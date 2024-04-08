@@ -9,7 +9,7 @@
   Working with promises can be pretty annoying, especially without a type system that supports
   them well. For this reason, the CLJS API generally also works on non-promise objects."
   #?(:clj (:import
-           [manifold3d Manifold MeshUtils ManifoldVector]
+           [manifold3d Manifold MeshUtils MeshUtils$LoftAlgorithm ManifoldVector]
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
            [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
@@ -512,8 +512,8 @@ to the interpolated surface according to their barycentric coordinates."
    (defn get-properties
      ([manifold]
       (let [props (.getProperties ^Manifold manifold)]
-        {:surface-area (.surfaceArea props)
-         :volume (.volume props)}))))
+        {:surface-area (double (.surfaceArea props))
+         :volume (double (.volume props))}))))
 
 (defn trim-by-plane
   "Subtracts the halfspace defined by the `normal`, offset by `origin-offset` in the direction of the normal."
@@ -815,13 +815,29 @@ to the interpolated surface according to their barycentric coordinates."
                              (doseq [poly (if (number? (ffirst x)) [x] x)]
                                (.pushBack pv (SimplePolygon/FromBuffer (double-vec2-sequence-to-native-double-buffer poly))))
                              pv))))
+#?(:clj
+   (defn- loft-algorithm->enum [name]
+     (case name
+       :eager-nearest-neighbor MeshUtils$LoftAlgorithm/EagerNearestNeighbor
+       :isomorphic MeshUtils$LoftAlgorithm/Isomorphic)))
 
 #?(:clj
    (defn loft
-     "Loft between isomorphic cross sections transformed by the associated 3D transform frames.
-  If a single cross-section is provided, lofts between copies of the cross section. cross-sections
-  do not need to be unique objects. The order and number of polygons and polygon vertices must be
-  equivalent for all cross-sections.
+     "Loft between cross sections transformed by the associated 3D transform frames.
+  If a single cross-section is provided, lofts between the same cross section at each frame position.
+  It also accepts a sequence of cross-sections, or a \"decomposed\" sequence of cross-sections,
+  i.e. a vector of vectors of polygons (which are vectors of points). Note there is a cannonical polygon
+  set for every cross section, with holes encoded by winding order.
+
+  There is also an optional `algorithm` argument. Options are :eager-nearest-neighbor (default) and
+  :isomorphic. :eager-nearest-neighbor cnostructs edges by eagerly adding the edge of minimum distance as it
+  zips around consecutive polygons. It can handle many cases of many-to-one and one-to-many vertex mappings.
+  However, all lofted cross sections must decompose into equal numbers of polygons. :isomorphic is the simplest and
+  maps vertices of consecutive polygons one-to-one. It requires that the order and number of polygons and polygon
+  vertices is equivalent for all cross-sections. It is slightly faster.
+
+  Note loft is *not* guaranteed to be well-defined for all input combinations. Users should roughy understand
+  how the the \"skinning\" of cross-sections works for a given algorithm type.
 
   ex.
   (let [c (difference (square 10 10 true) (square 8 8 true))]
@@ -841,7 +857,8 @@ to the interpolated surface according to their barycentric coordinates."
 
   It also has a single arity operation that accepts a vector of {:cross-section ... :frame ...} maps.
   It will automatically use the \"lastest\" cross-section if one or more is missing. :frame must be
-  defined in each map.
+  defined in each map. First map can optionally include a :algorithm keyword to specify the lofting
+  algorithm.
 
   (loft
    (reductions
@@ -853,23 +870,28 @@ to the interpolated surface according to their barycentric coordinates."
                         (MatrixTransforms/Yaw (/ 0.2 2)))))
     {:cross-section (difference (square 4 4 true)
                                 (square 2 2 true))
+     :algorithm :earger-nearest-neighbor ;; Optional algorithm specifier in first map.
      :frame (frame 1)}
   (cons (rem (* 2 Math/PI) 0.2) (range (quot (* 2 Math/PI) 0.2)))))"
      ([loft-segments]
       (let [cv (PolygonsVector.)
             fv (DoubleMat4x3Vector.)
-            last-cross-section (:cross-section (first loft-segments))]
+            first-seg (first loft-segments)
+            last-cross-section (:cross-section first-seg)
+            algorithm (:algorithm first-seg :eager-nearest-neighbor)]
         (when (nil? last-cross-section)
           (throw (IllegalArgumentException. "First loft segment must contain :cross-section")))
         (loop [last-cross-section last-cross-section
                [{:keys [frame cross-section] :as segment} & more] loft-segments]
-          (cond (nil? segment) (MeshUtils/Loft cv fv)
+          (cond (nil? segment) (MeshUtils/Loft cv fv (loft-algorithm->enum algorithm))
                 (nil? frame) (throw (IllegalArgumentException. "All loft segments must have :frame"))
                 :else (let [c (or cross-section last-cross-section)]
                         (.pushBack cv (>polygons c))
                         (.pushBack fv frame)
                         (recur c more))))))
      ([cross-sections frames]
+      (loft cross-sections frames :eager-nearest-neighbor))
+     ([cross-sections frames algorithm]
       (let [sections (if (cross-section? cross-sections)
                        cross-sections
                        (let [cv (PolygonsVector.)]
@@ -881,7 +903,7 @@ to the interpolated surface according to their barycentric coordinates."
             tv (DoubleMat4x3Vector.)]
         (doseq [^DoubleMat4x3 t frames]
           (.pushBack tv t))
-        (MeshUtils/Loft sections ^DoubleMat4x3Vector tv)))))
+        (MeshUtils/Loft sections ^DoubleMat4x3Vector tv (loft-algorithm->enum algorithm))))))
 
 #?(:clj
    (defn simplify
