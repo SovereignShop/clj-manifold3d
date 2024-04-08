@@ -961,28 +961,3 @@ to the interpolated surface according to their barycentric coordinates."
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
-
-
-(comment
-
-  (loft
-   (union
-    (difference (circle 10 40)
-                (circle 8 40))
-    (difference (circle 20 40)
-                (circle 18 40)))
-   (let [n 60]
-     (for [sign [-]
-           i (range (inc n))]
-       (-> (frame 1)
-           (rotate [0 (sign (* i (/ (/ Math/PI 1) n))) 0])
-           (translate [50 0 0])))))
-
-
-  (loft [(circle 15 20)
-         (square 20 20 true)]
-        [(frame 1) (-> (frame 1) (translate [0 0 30]))])
-
-
-
-  )
