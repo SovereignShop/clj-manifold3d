@@ -75,7 +75,7 @@ Examples should look very familiar if you've ever used OpenSCAD.
     (export-mesh "hull3D.stl"))
 ```
 
-![3D hull](resources/images/3D-Hull.png)
+![3D hull](resources/images/3D-hull.png)
 
 ## Partial revolutions
 
