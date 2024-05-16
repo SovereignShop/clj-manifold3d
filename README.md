@@ -48,7 +48,7 @@ See the core namespace for some documentation. Refer to the original library for
 
 Examples should look very familiar if you've ever used OpenSCAD.
 
-2D hulls:
+## 2D hulls
 
 ``` clojure
 (require '[clj-manifold3d.core :refer [circle square translate extrude get-mesh export-mesh hull
@@ -63,9 +63,9 @@ Examples should look very familiar if you've ever used OpenSCAD.
     (export-mesh "hull2D.stl"))
 ```
 
-![2D hull](resources/images/hull2D.png)
+![2D hull](resources/images/2D-hull.png)
 
-3D hulls:
+## 3D hulls
 
 ``` clojure
 (-> (hull (cylinder 2 12 12 120)
@@ -75,9 +75,9 @@ Examples should look very familiar if you've ever used OpenSCAD.
     (export-mesh "hull3D.stl"))
 ```
 
-![3D hull](resources/images/Hull3D.png)
+![3D hull](resources/images/3D-Hull.png)
 
-Partial revolutions:
+## Partial revolutions
 
 ``` clojure
 (let [m (-> (cross-section [[-10 0] [10 0] [0 10]])
@@ -88,9 +88,9 @@ Partial revolutions:
       (export-mesh "revolve.stl")))
 ```
 
-![Partial revolve](resources/images/revolve.png)
+![Partial revolve](resources/images/revolution.png)
 
-Polyhedron:
+## Polyhedron
 
 ``` clojure
 (-> (polyhedron [[0 0 0]
@@ -111,9 +111,46 @@ Polyhedron:
     (export-mesh "polyhedron-cube.stl"))
 ```
 
-![Partial revolve](resources/images/polyhedron-cube.png)
+![Partial revolve](resources/images/polyhedron.png)
 
-Loft:
+
+## Frames
+
+Transform frames, which are 4x3 affine transformation matrices, can be manipulated similar to manifolds.
+
+
+``` clojure
+(mapv vec
+      (-> (frame 1)
+          (translate [0 0 10])
+          (vec)))
+;; => [[1.0 0.0 0.0] [0.0 1.0 0.0] [0.0 0.0 1.0] [0.0 0.0 10.0]]
+```
+
+Frames transform slightly differently than manifolds. The rotation components are best thought of as basis vectors of a coordinate frame, with the last component representing the position of that frame. Rotations are applied relative to the current frame, turtle-graphics style. Here is an example of apply a transform to a cylinder:
+
+
+``` clojure
+(-> (cylinder 50 5)
+    (transform (-> (frame 1)
+                   (rotate [0 (/ Math/PI 4) 0])
+                   (translate [0 0 30]))))
+```
+![Tranform](resources/images/transform.png)
+
+
+2D transform frames can also be manipulated similar to cross sections.
+
+``` clojure
+(mapv vec
+      (-> (frame-2d 1)
+          (translate [0 10])
+          (vec)))
+;; => [[1.0 0.0] [0.0 1.0] [0.0 0.0]]
+```
+
+
+## Loft
 
 ``` clojure
 (-> (let [c (difference (square 10 10 true) (square 8 8 true))]
@@ -125,8 +162,63 @@ Loft:
     (export-mesh "loft.stl"))
 ```
 
-![Partial revolve](resources/images/loft-example.png)
+![Partial revolve](resources/images/simple-loft.png)
 
+Loft and also handle one-to-many and many-to-one vertex mappings:
+
+``` clojure
+(-> (loft [(circle 20 15)
+           (square 30 30 true)
+           (circle 20 20)]
+          [(frame 1)
+           (-> (frame 1) (translate [0 0 15]))
+           (-> (frame 1) (translate [0 0 30]))])
+    (get-mesh)
+    (export-mesh "monomorphic-loft.stl"))
+```
+
+![Monomorphic Loft](resources/images/monomorphic-loft.png)
+
+
+There is also a single arity version of loft:
+
+``` clojure
+(-> (loft [{:cross-section (circle 50 12)
+            :frame (frame 1)}
+           {:frame (-> (frame 1) (translate [0 0 20]))}
+           {:frame (-> (frame 1) (translate [0 0 20]))
+            :cross-section (circle 46 12)}
+           {:frame (-> (frame 1) (translate [0 0 3]))}])
+    (get-mesh)
+    (export-mesh "single-arity-loft.stl"))
+```
+
+
+![Single Arity Loft](resources/images/single-arity-loft.png)
+
+## Slice 
+
+Slice solves for the cross-section of a manifold that intersects the x/y plane.
+
+``` clojure
+(-> (slice (scale (tetrahedron) [5 10 15]))
+    (extrude 1/2)
+    (get-mesh)
+    (export-mesh "slice.glb" :material mesh-material))
+```
+
+![Slice](resources/images/slice.png)
+
+There is an efficient aglorithm that solves for N equally spaces slices.
+
+``` clojure
+(-> (for [[i slice] (map-indexed vector (slices (scale (tetrahedron) [5 10 15]) 5 10 10))]
+      (-> slice 
+          (translate [0 0 (* i 0.5)])))
+    (extrude 1/2))
+```
+
+![Slices](resources/images/slices.png)
 
 # Example Projects
 
@@ -135,5 +227,3 @@ https://github.com/SovereignShop/spiralized-hydroponic-tower
 
 Kossel delta printer:
 https://github.com/SovereignShop/kossel-printer/
-
-

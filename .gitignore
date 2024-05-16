@@ -4,7 +4,6 @@
 tmp/
 
 node_modules
-resources/
 
 *.dir-locals.el
 

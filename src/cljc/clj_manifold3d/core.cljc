@@ -17,7 +17,8 @@
            [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
   #?(:clj
      (:require
-      [clj-manifold3d.impl :as impl])
+      [clj-manifold3d.impl :as impl]
+      [clj-manifold3d.utils :as u])
      :cljs
      (:require
       [promesa.core :as p]
@@ -536,6 +537,12 @@ to the interpolated surface according to their barycentric coordinates."
       ^CrossSection (.slice ^Manifold (impl/to-csg manifold) height))))
 
 #?(:clj
+   (defn slices
+     "Returns a vector of `n-slices` evenly spaced cross-sections between `bottom-z` and `top-z`."
+     [manifold bottom-z top-z n-slices]
+     (vec ^CrossSectionVector (.slices ^Manifold manifold bottom-z top-z n-slices))))
+
+#?(:clj
    (defn project
      "Returns the 2D projection of `manifold` onto the xy plane."
      [manifold]
@@ -740,6 +747,56 @@ to the interpolated surface according to their barycentric coordinates."
                                (.setup module)
                                (.circle module radius circular-segments))))))
 
+#?(:clj
+   (defn- three-point-circle-parameters
+     "Calculate parameters for a three point circle."
+     [p1 p2 p3]
+     (let [v1 (u/vec-sub p2 p1)
+           v2 (u/vec-sub p3 p1)
+
+           a (u/vec-length v1)
+           b (u/vec-length (u/vec-sub p3 p2))
+           c (u/vec-length v2)
+           [A _ _] (u/abc->ABC a b c)
+           radius (/ a (* 2 (u/sin A)))
+           D (u/acos (/ a (* 2 radius)))
+
+
+           direction (u/cross-product-z v1 v2)
+
+           center
+           (-> (frame-2d (u/vec-normalize (u/vec-sub p2 p1)) p1)
+               (rotate (if (pos? direction) D  (- D)))
+               (translate [radius 0])
+               (.getColumn 2)
+               (vec))]
+       [radius center direction])))
+
+#?(:clj
+   (defn three-point-arc-points
+     "Returns points for an arc segment defined by three points."
+     [p1 p2 p3 n-segments]
+     (let [[radius center direction] (three-point-circle-parameters p1 p2 p3)
+           curve-angle (cond->> (u/angle-between-vectors
+                                 (u/vec-sub p1 center)
+                                 (u/vec-sub p3 center))
+                         false (- (* 2 u/pi)))
+           angle-increment (/ curve-angle n-segments)
+           start-dir (u/vec-normalize (u/vec-sub p1 center))
+           frame (frame-2d start-dir center)]
+       (for [i (range (inc n-segments))]
+         (-> frame
+             (rotate (* i (if (neg? direction) -1 1) angle-increment))
+             (translate [radius 0])
+             (.getColumn 2)
+             (vec))))))
+
+#?(:clj
+   (defn three-point-arc
+     "Creates a cross-section from an arc segment defined by three points."
+     [p1 p2 p3 n-segments]
+     (cross-section (three-point-arc-points p1 p2 p3 n-segments))))
+
 (defn square
   "Construct a square CrossSection. `center?` option centers the square in the xy plane."
   ([x y] (square x y false))
@@ -830,7 +887,7 @@ to the interpolated surface according to their barycentric coordinates."
   set for every cross section, with holes encoded by winding order.
 
   There is also an optional `algorithm` argument. Options are :eager-nearest-neighbor (default) and
-  :isomorphic. :eager-nearest-neighbor cnostructs edges by eagerly adding the edge of minimum distance as it
+  :isomorphic. :eager-nearest-neighbor constructs edges by eagerly adding the edge of minimum distance as it
   zips around consecutive polygons. It can handle many cases of many-to-one and one-to-many vertex mappings.
   However, all lofted cross sections must decompose into equal numbers of polygons. :isomorphic is the simplest and
   maps vertices of consecutive polygons one-to-one. It requires that the order and number of polygons and polygon
