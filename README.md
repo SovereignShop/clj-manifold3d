@@ -5,7 +5,7 @@
 
 This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. The CLJ implementation is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold. The CLJS implementation is based on emscripten build of Manifold for wasm.
 
-It implements most of the library functionality, plus extends it to support polyhedrons and lofts. It provides nearly a full superset of OpenSCAD functionality (except no text support yet).
+It implements most of the library functionality, plus extends it to support polyhedrons and lofts. It provides nearly a full superset of OpenSCAD functionality.
 
 Manifold represents a dramatic advance in the state-of-the-art of open-source programmatic CAD. It has been adopted by most major CAD kernels.
 
@@ -51,9 +51,12 @@ Examples should look very familiar if you've ever used OpenSCAD.
 ## 2D hulls
 
 ``` clojure
-(require '[clj-manifold3d.core :refer [circle square translate extrude get-mesh export-mesh hull
-                                       cross-section revolve difference cylinder sphere offset
-                                       polyhedron loft frame]])
+(require '[clj-manifold3d.core 
+           :refer [cube cylinder sphere cylinder extrude cross-section frame square circle
+                   union difference intersection translate get-mesh export-mesh status rotate
+                   hull revolve offset refine smooth loft scale material text scale-to-height
+                   three-point-arc frame-2d transform slice tetrahedron slices polyhedron]])
+                                       
 
 (-> (hull (circle 5)
           (-> (square 10 10 true)
@@ -127,7 +130,7 @@ Transform frames, which are 4x3 affine transformation matrices, can be manipulat
 ;; => [[1.0 0.0 0.0] [0.0 1.0 0.0] [0.0 0.0 1.0] [0.0 0.0 10.0]]
 ```
 
-Frames transform slightly differently than manifolds. The rotation components are best thought of as basis vectors of a coordinate frame, with the last component representing the position of that frame. Rotations are applied relative to the current frame, turtle-graphics style. Here is an example of apply a transform to a cylinder:
+Frames transform slightly differently than manifolds. The rotation components are best thought of as basis vectors of a coordinate frame, with the last component representing the position of that frame. Rotations and translations are applied relative to the frame, turtle-graphics style. Here is an example of applying a transform to a cylinder:
 
 
 ``` clojure
@@ -195,6 +198,17 @@ There is also a single arity version of loft:
 
 
 ![Single Arity Loft](resources/images/single-arity-loft.png)
+
+## Text
+
+``` clojure
+(-> (text "resources/fonts/Cinzel-Regular.ttf" "Manifold" 10 20 :non-zero)
+    (scale-to-height 100)
+    (extrude 20)
+    (get-mesh)
+    (export-mesh "text.glb" :material mesh-material))
+```
+![Text](resources/images/text.png)
 
 ## Slice 
 
