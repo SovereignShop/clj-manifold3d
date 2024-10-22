@@ -840,16 +840,6 @@ to the interpolated surface according to their barycentric coordinates."
               scale-factor (/ height z)]
           (scale obj [scale-factor scale-factor scale-factor]))))
 
-(defn circle
-  "Construct a circle of `circular-segments` edges centered on the xy plane."
-  ([radius] (circle radius 0))
-  ([radius circular-segments]
-   #?(:clj (CrossSection/Circle radius circular-segments)
-      :cljs (update-manifold *manifold-module*
-                             (fn [module]
-                               (.setup module)
-                               (.circle module radius circular-segments))))))
-
 #?(:clj
    (defn- three-point-circle-parameters
      "Calculate parameters for a three point circle."
@@ -869,21 +859,45 @@ to the interpolated surface according to their barycentric coordinates."
 
            center
            (-> (frame-2d (u/vec-normalize (u/vec-sub p2 p1)) p1)
-               (rotate (if (pos? direction) D  (- D)))
+               (rotate (* (- (/ direction (Math/abs direction)))
+                          (if (> (- (+ A D) 0.0001) (/ Math/PI 2)) D  (- D))))
                (translate [radius 0])
                (.getColumn 2)
                (vec))]
        [radius center direction])))
 
+(defn circle
+  "Construct a circle of `circular-segments` edges centered on the xy plane."
+  ([radius] (circle radius 0))
+  ([radius circular-segments]
+   #?(:clj (CrossSection/Circle radius circular-segments)
+      :cljs (update-manifold *manifold-module*
+                             (fn [module]
+                               (.setup module)
+                               (.circle module radius circular-segments)))))
+  #?(:clj ([p1 p2 p3]
+           (circle p1 p2 p3 0)))
+  #?(:clj ([p1 p2 p3 circular-segments]
+           (let [[radius center _] (three-point-circle-parameters p1 p2 p3)]
+             (-> (circle radius circular-segments)
+                 (translate center))))))
+
 #?(:clj
    (defn three-point-arc-points
      "Returns points for an arc segment defined by three points."
      [p1 p2 p3 n-segments]
-     (let [[radius center direction] (three-point-circle-parameters p1 p2 p3)
-           curve-angle (cond->> (u/angle-between-vectors
-                                 (u/vec-sub p1 center)
-                                 (u/vec-sub p3 center))
-                         false (- (* 2 u/pi)))
+     (let [[radius center _] (three-point-circle-parameters p1 p2 p3)
+           direction (u/cross-product-z
+                      (u/vec-sub p1 center)
+                      (u/vec-sub p2 center))
+           op (if (pos? direction)
+                u/angle-between-vectors-ccw-2d
+                u/angle-between-vectors-cw-2d)
+           p1-p2-angle (op (u/vec-sub p1 center)
+                           (u/vec-sub p2 center))
+           p2-p3-angle (op (u/vec-sub p2 center)
+                           (u/vec-sub p3 center))
+           curve-angle (+ p1-p2-angle p2-p3-angle)
            angle-increment (/ curve-angle n-segments)
            start-dir (u/vec-normalize (u/vec-sub p1 center))
            frame (frame-2d start-dir center)]
@@ -899,6 +913,7 @@ to the interpolated surface according to their barycentric coordinates."
      "Creates a cross-section from an arc segment defined by three points."
      [p1 p2 p3 n-segments]
      (cross-section (three-point-arc-points p1 p2 p3 n-segments))))
+
 
 (defn square
   "Construct a square CrossSection. `center?` option centers the square in the xy plane."

@@ -86,6 +86,24 @@
         magnitudes (* (vec-length v1) (vec-length v2))]
     (Math/acos (min 1 (max -1 (/ dot-product magnitudes))))))
 
+(defn angle-between-vectors-cw [v1 v2]
+  (let [dot-product (vec-dot v1 v2)
+        cross-product (- (* (v1 0) (v2 1)) (* (v1 1) (v2 0)))
+        magnitudes (* (vec-length v1) (vec-length v2))
+        angle (Math/acos (min 1 (max -1 (/ dot-product magnitudes))))]
+    (if (neg? cross-product)
+      angle
+      (- (* 2 Math/PI) angle))))
+
+(defn angle-between-vectors-ccw [v1 v2]
+  (let [dot-product (vec-dot v1 v2)
+        cross-product (- (* (v1 0) (v2 1)) (* (v1 1) (v2 0)))
+        magnitudes (* (vec-length v1) (vec-length v2))
+        angle (Math/acos (min 1 (max -1 (/ dot-product magnitudes))))]
+    (if (pos? cross-product)
+      angle
+      (- (* 2 Math/PI) angle))))
+
 (defn cross-product-z
   [v1 v2]
   (- (* (nth v1 0) (nth v2 1)) (* (nth v1 1) (nth v2 0))))

@@ -277,6 +277,45 @@ Surface creates a manifold from a heatmap structure:
 
 Use the underlying `MeshUtils/CreateSurface` for max performance when generating large heatmaps. You can also use create a surface from a `.png`, `.jpg` or other image file using `load-surface`.
 
+## Three Point Circles & Arcs
+
+Three point circle: 
+
+``` clojure
+(let [p1 [0 0] p2 [1 12] p3 [15 0]]
+  (-> (difference
+       (circle p1 p2 p3 100)
+       (union
+        (for [p [p1 p2 p3]]
+          (-> (circle 1 10)
+              (translate p)))))
+      (extrude 1)
+      (get-mesh)
+      (export-mesh "three-point-circle.glb" :material mesh-material)))
+```
+
+![Three Point Circle](resources/images/three-point-circle.png)
+
+three point arc:
+
+``` clojure
+(let [p1 [0 0] p2 [2 5] p3 [-6 10]]
+  (-> (union
+       (three-point-arc p1 p2 p3 20)
+       (union
+        (for [p [p1 p2 p3]]
+          (-> (circle 1 10)
+              (translate p)))))
+      (extrude 1)
+      (get-mesh)
+      (export-mesh "three-point-arc.glb" :material mesh-material)))
+```
+
+![Three Point Circle](resources/images/three-point-arc.png)
+
+Use `three-point-arc-points` to get a vector of the points corresponding to the arc segment.
+
+
 # Example Projects
 
 A Simple rapidly printable hydroponic tower:
