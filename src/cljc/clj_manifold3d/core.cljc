@@ -58,6 +58,20 @@
          (.put buf c))
        (.flip buf))))
 
+
+#?(:clj
+   (defn- double-square-sequences-to-native-double-buffer
+     "Maps a sequence of 3-sequences to a flat row-major double buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) (count (first col)) Double/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asDoubleBuffer))]
+       (doseq [row col
+               ^double a row]
+         (.put buf a))
+       (.flip buf))))
+
+
 #?(:clj
    (defn- double-vec4-sequence-to-native-double-buffer
      "Maps a sequence of 4-sequences to a flat native-ordered row-major double buffer."
@@ -183,6 +197,55 @@
                             (.put buf c))
                           (.flip buf))]
        (MeshUtils/PolyhedronFromBuffers vert-buf (count verts) face-buf face-lengths (count faces)))))
+
+#?(:clj
+   (defn surface
+     "Creates a Manifold from a heat map defined as a square matrix with each cell representing height.
+   `heatmap` is a sequence of sequences of equal length. `pixel-width` specifies the width each pixel
+    cooresponds to in the resulting manifold."
+     ([heatmap]
+      (surface heatmap 1.0))
+     ([heatmap pixel-width]
+      (let [width (count heatmap)
+            height (count (first heatmap))
+            heat-values (double-square-sequences-to-native-double-buffer heatmap)]
+        (MeshUtils/CreateSurface heat-values width height pixel-width)))))
+
+#?(:clj
+   (defn load-surface
+     ([filename]
+      (MeshUtils/CreateSurface filename))
+     ([filename pixel-width]
+      (MeshUtils/CreateSurface filename pixel-width))))
+
+(defn sinewave-heatmap
+  "Generates a 3D sinewave heatmap.
+  The output is a vector of vectors representing a square matrix.
+  Each cell represents the height at that x/y coordinate based on a sinewave.
+
+  Args:
+  - size: The size of the matrix (width and height).
+  - frequency: Frequency of the sinewave (controls the number of wave oscillations).
+  - amplitude: Amplitude of the sinewave (controls the height of the wave).
+  - phase: Phase shift of the sinewave.
+
+  Returns a matrix where each value is the sinewave height at that coordinate."
+  [size frequency amplitude phase]
+  (vec
+   (for [y (range size)]
+     (vec
+      (for [x (range size)]
+        (+ (+ 10 amplitude)
+           (* amplitude
+              (Math/sin
+               (+ (* frequency (/ x size)) ;; x-axis variation
+                  (* frequency (/ y size)) ;; y-axis variation
+                  phase)))))))))              ;; Optional phase shift
+
+(surface
+ (sinewave-heatmap 50 10 5 0)
+ 1.0)
+
 
 (defn cube
   "Creates a cube with specified dimensions.
@@ -510,6 +573,13 @@ to the interpolated surface according to their barycentric coordinates."
                                (.boundingBox man))))))
 
 #?(:clj
+   (defn get-height [obj]
+     "Get the z-height of a manifold or y-height of a cross section."
+     (let [x (impl/to-csg obj)]
+       (cond (cross-section? obj) (-> ^CrossSection x (.bounds) (.Size) (.y))
+             (manifold? obj) (-> ^Manifold x (.boundingBox) (.Size) (.z))))))
+
+#?(:clj
    (defn get-properties
      ([manifold]
       (let [props (.getProperties ^Manifold manifold)]
@@ -618,6 +688,24 @@ to the interpolated surface according to their barycentric coordinates."
    #?(:clj (impl/translate x tv)
       :cljs (update-manifold x (fn [o] (.translate o (clj->js tv)))))))
 
+(defn tx
+  "Translate along x axis."
+  [x tx]
+  #?(:clj (impl/translate x [tx 0 0])
+     :cljs (update-manifold x (fn [o] (.translate o (clj->js [tx 0 0]))))))
+
+(defn ty
+  "Translate along y axis."
+  [x ty]
+  #?(:clj (impl/translate x [0 ty 0])
+     :cljs (update-manifold x (fn [o] (.translate o (clj->js [0 ty 0]))))))
+
+(defn tz
+  "Translate along z axis."
+  [x tz]
+  #?(:clj (impl/translate x [0 0 tz])
+     :cljs (update-manifold x (fn [o] (.translate o (clj->js [0 0 tz]))))))
+
 (defn rotate
   "Rotates a `Manifold`, `CrossSection` or transform frame by the given rotation vector or number.
 
@@ -661,6 +749,21 @@ to the interpolated surface according to their barycentric coordinates."
             tr (cond-> [(if (contains? axes :x) (- (.x bnds)) 0)
                         (if (contains? axes :y) (- (.y bnds)) 0)]
                  (manifold? csg) (conj (if (contains? axes :z) (- (.z bnds)) 0)))]
+        (translate csg tr)))))
+
+#?(:clj
+   (defn snap
+     "Snap a Manifold/CrossSection toa plane/line."
+     ([obj]
+      (snap obj #{:x}))
+     ([obj axes]
+      (let [csg (impl/to-csg obj)
+            axes (if (set? axes) axes (into #{} axes))
+            bnds (.Center (bounds csg))
+            size (.Size (bounds csg))
+            tr (cond-> [(if (contains? axes :x) (+ (- (.x bnds)) (/ (.x size) 2)) 0)
+                        (if (contains? axes :y) (+ (- (.y bnds)) (/ (.y size) 2)) 0)]
+                 (manifold? csg) (conj (if (contains? axes :z) (+ (- (.z bnds)) (/ (.z size) 2)) 0)))]
         (translate csg tr)))))
 
 (defn get-mesh
@@ -935,17 +1038,23 @@ to the interpolated surface according to their barycentric coordinates."
             fv (DoubleMat4x3Vector.)
             first-seg (first loft-segments)
             last-cross-section (:cross-section first-seg)
+            last-frame (or (:frame first-seg) (frame 1))
             algorithm (:algorithm first-seg :eager-nearest-neighbor)]
         (when (nil? last-cross-section)
           (throw (IllegalArgumentException. "First loft segment must contain :cross-section")))
         (loop [last-cross-section last-cross-section
-               [{:keys [frame cross-section] :as segment} & more] loft-segments]
+               last-frame last-frame
+               [{:keys [frame frame-fn cross-section cross-section-fn] :as segment} & more] loft-segments]
           (cond (nil? segment) (MeshUtils/Loft cv fv (loft-algorithm->enum algorithm))
-                (nil? frame) (throw (IllegalArgumentException. "All loft segments must have :frame"))
-                :else (let [c (or cross-section last-cross-section)]
+                :else (let [c (if cross-section-fn
+                                (cross-section-fn last-cross-section)
+                                (or cross-section last-cross-section))
+                            f (if frame-fn
+                                (frame-fn last-frame)
+                                (or frame last-frame))]
                         (.pushBack cv (>polygons c))
-                        (.pushBack fv frame)
-                        (recur c more))))))
+                        (.pushBack fv f)
+                        (recur c f more))))))
      ([cross-sections frames]
       (loft cross-sections frames :eager-nearest-neighbor))
      ([cross-sections frames algorithm]

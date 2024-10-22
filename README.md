@@ -234,6 +234,45 @@ There is an efficient aglorithm that solves for N equally spaces slices.
 
 ![Slices](resources/images/slices.png)
 
+## Surface 
+
+Surface creates a manifold from a heatmap structure:
+
+``` clojure
+(defn sinewave-heatmap
+  "Generates a 3D sinewave heatmap.
+  The output is a vector of vectors representing a square matrix.
+  Each cell represents the height at that x/y coordinate based on a sinewave.
+
+  Args:
+  - size: The size of the matrix (width and height).
+  - frequency: Frequency of the sinewave (controls the number of wave oscillations).
+  - amplitude: Amplitude of the sinewave (controls the height of the wave).
+  - phase: Phase shift of the sinewave.
+
+  Returns a matrix where each value is the sinewave height at that coordinate."
+  [size frequency amplitude phase]
+  (vec
+   (for [y (range size)]
+     (vec
+      (for [x (range size)]
+        (+ (+ 10 amplitude)
+           (* amplitude
+              (Math/sin
+               (+ (* frequency (/ x size))
+                  (* frequency (/ y size))
+                  phase))))))))) 
+
+(-> (sinewave-heatmap 50 10 5 0)
+    (surface 1.0)
+    (get-mesh)
+    (export-mesh "sine-wave-surface.glb" :material mesh-material))
+```
+
+![Slices](resources/images/sine-wave-surface.png)
+
+Use the underlying `MeshUtils/CreateSurface` for max performance when generating large heatmaps. You can also use create a surface from a `.png`, `.jpg` or other image file using `load-surface`.
+
 # Example Projects
 
 A Simple rapidly printable hydroponic tower:
