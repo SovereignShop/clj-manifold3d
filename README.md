@@ -226,10 +226,14 @@ Slice solves for the cross-section of a manifold that intersects the x/y plane.
 There is an efficient aglorithm that solves for N equally spaces slices.
 
 ``` clojure
-(-> (for [[i slice] (map-indexed vector (slices (scale (tetrahedron) [5 10 15]) 5 10 10))]
-      (-> slice 
-          (translate [0 0 (* i 0.5)])))
-    (extrude 1/2))
+(-> (union
+     (for [[i slice] (map-indexed vector (slices (scale (tetrahedron) [5 10 15]) 5 10 10) )]
+       (-> slice
+           (extrude 1/8)
+           (translate [0 0 (* i 0.5)]))))
+    (get-mesh)
+    (export-mesh "slices.glb" :material mesh-material))
+
 ```
 
 ![Slices](resources/images/slices.png)
