@@ -567,6 +567,7 @@ to the interpolated surface according to their barycentric coordinates."
   ([obj]
    #?(:clj (cond (manifold? obj) (.boundingBox ^Manifold obj)
                  (cross-section? obj) (.bounds ^CrossSection obj)
+                 (satisfies? impl/ICSGConvertable obj) (bounds (impl/to-csg obj))
                  :else (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Received: " (type obj)))))
       :cljs (update-manifold obj
                              (fn [man]
@@ -585,6 +586,12 @@ to the interpolated surface according to their barycentric coordinates."
       (let [props (.getProperties ^Manifold manifold)]
         {:surface-area (double (.surfaceArea props))
          :volume (double (.volume props))}))))
+
+#?(:clj
+   (defn area
+     "Get the area of a cross section."
+     [section]
+     (.area ^CrossSection section)))
 
 (defn trim-by-plane
   "Subtracts the halfspace defined by the `normal`, offset by `origin-offset` in the direction of the normal."
@@ -685,25 +692,25 @@ to the interpolated surface according to their barycentric coordinates."
 (defn translate
   "Translates a `Manifold` or `CrossSection` with the given vector."
   ([x tv]
-   #?(:clj (impl/translate x tv)
+   #?(:clj (impl/translate (if (satisfies? impl/ICSGConvertable x) (impl/to-csg x) x) tv)
       :cljs (update-manifold x (fn [o] (.translate o (clj->js tv)))))))
 
 (defn tx
   "Translate along x axis."
   [x tx]
-  #?(:clj (impl/translate x [tx 0 0])
+  #?(:clj (impl/translate (if (satisfies? impl/ICSGConvertable x) (impl/to-csg x) x) [tx 0 0])
      :cljs (update-manifold x (fn [o] (.translate o (clj->js [tx 0 0]))))))
 
 (defn ty
   "Translate along y axis."
   [x ty]
-  #?(:clj (impl/translate x [0 ty 0])
+  #?(:clj (impl/translate (if (satisfies? impl/ICSGConvertable x) (impl/to-csg x) x) [0 ty 0])
      :cljs (update-manifold x (fn [o] (.translate o (clj->js [0 ty 0]))))))
 
 (defn tz
   "Translate along z axis."
   [x tz]
-  #?(:clj (impl/translate x [0 0 tz])
+  #?(:clj (impl/translate (if (satisfies? impl/ICSGConvertable x) (impl/to-csg x) x) [0 0 tz])
      :cljs (update-manifold x (fn [o] (.translate o (clj->js [0 0 tz]))))))
 
 (defn rotate
@@ -713,12 +720,12 @@ to the interpolated surface according to their barycentric coordinates."
   unchanged. You can interpret the rotation columns of the frame as the axes of a coordinate
   frame."
   ([x rv]
-   #?(:clj (impl/rotate x rv)
+   #?(:clj (impl/rotate (if (satisfies? impl/ICSGConvertable x) (impl/to-csg x) x) rv)
       :cljs (update-manifold x (fn [o] (.rotate o (clj->js rv)))))))
 
 #?(:clj
    (defn transform [x transform-matrix]
-     (impl/transform x transform-matrix)))
+     (impl/transform (if (satisfies? impl/ICSGConvertable x) (impl/to-csg x) x) transform-matrix)))
 
 #?(:clj
    (defn invert-frame
@@ -776,9 +783,9 @@ to the interpolated surface according to their barycentric coordinates."
    (defn get-mesh-gl
      "Calculates and returns the Manifold's mesh. Note that most of the CSG work is done when running this function."
      ([manifold]
-      (.getMeshGL ^Manifold manifold (IntegerVec3. 0 1 2)))
+      (.getMeshGL ^Manifold (impl/to-csg manifold) (IntegerVec3. 0 1 2)))
      ([manifold normalIdx]
-      (.getMeshGL ^Manifold manifold (IntegerVec3. (nth normalIdx 0) (nth normalIdx 1) (nth normalIdx 1))))))
+      (.getMeshGL ^Manifold (impl/to-csg manifold) (IntegerVec3. (nth normalIdx 0) (nth normalIdx 1) (nth normalIdx 1))))))
 
 #?(:clj
    (defn- fill-rule->enum [fill-rule]
@@ -891,8 +898,8 @@ to the interpolated surface according to their barycentric coordinates."
                       (u/vec-sub p1 center)
                       (u/vec-sub p2 center))
            op (if (pos? direction)
-                u/angle-between-vectors-ccw-2d
-                u/angle-between-vectors-cw-2d)
+                u/angle-between-vectors-ccw
+                u/angle-between-vectors-cw)
            p1-p2-angle (op (u/vec-sub p1 center)
                            (u/vec-sub p2 center))
            p2-p3-angle (op (u/vec-sub p2 center)
@@ -1143,3 +1150,41 @@ to the interpolated surface according to their barycentric coordinates."
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
+
+(comment
+
+  (def mesh-material (material :color [0.0 0.7 0.7 1] :metalness 0.3))
+
+  (-> (polyhedron [[0 0 0]
+                   [5 0 0]
+                   [5 5 0]
+                   [0 5 0]
+                   [0 0 5]
+                   [5 0 5]
+                   [5 5 5]
+                   [0 5 5]]
+                  [[0 3 2 1]
+                   [4 5 6 7]
+                   [0 1 5 4]
+                   [1 2 6 5]
+                   [2 3 7 6]
+                   [3 0 4 7]])
+      (get-mesh)
+      (export-mesh "polyhedron-cube.glb"
+                   :material (doto mesh-material
+                               (.vertColor (DoubleVec4Vector/FromArray
+                                            (double-array
+                                             (for [pt (range 8)
+                                                   ch (if (>= pt 4)
+                                                        [0.741176 0.745098 0.670588 1.0]
+                                                        [0.0 1.0 1.0 1.0])]
+                                               ch)))))))
+
+
+
+  
+
+
+
+
+  )

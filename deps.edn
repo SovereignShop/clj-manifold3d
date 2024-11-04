@@ -9,8 +9,11 @@
 
   :clj-dev
   {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}
-                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.86"}}
-   :extra-paths ["build" "test/cljc" "examples/"]}
+                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.86"}
+                jme-clj/jme-clj {:mvn/version "0.1.13"}
+                com.github.stephengold/Heart {:mvn/version "9.1.0"}
+                }
+   :extra-paths ["build" "test/cljc" "examples/" "resources" "asset"]}
 
   :clj-test {:extra-paths ["test/cljc"]
              :extra-deps  {lambdaisland/kaocha {:mvn/version "1.88.1376"}
