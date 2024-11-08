@@ -13,7 +13,7 @@
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
            [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
-            DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 MatrixTransforms DoubleVec4]
+            DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 IntegerVec4 MatrixTransforms DoubleVec4]
            [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
   #?(:clj
      (:require
@@ -60,17 +60,16 @@
 
 
 #?(:clj
-   (defn- double-square-sequences-to-native-double-buffer
+   (defn- square-sequences-to-native-float-buffer
      "Maps a sequence of 3-sequences to a flat row-major double buffer."
      [col]
-     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) (count (first col)) Double/BYTES))
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) (count (first col)) Float/BYTES))
                    (.order (ByteOrder/nativeOrder))
-                   (.asDoubleBuffer))]
+                   (.asFloatBuffer))]
        (doseq [row col
                ^double a row]
          (.put buf a))
        (.flip buf))))
-
 
 #?(:clj
    (defn- double-vec4-sequence-to-native-double-buffer
@@ -208,8 +207,14 @@
      ([heatmap pixel-width]
       (let [width (count heatmap)
             height (count (first heatmap))
-            heat-values (double-square-sequences-to-native-double-buffer heatmap)]
-        (MeshUtils/CreateSurface heat-values width height pixel-width)))))
+            heat-values (square-sequences-to-native-float-buffer heatmap)]
+        (MeshUtils/CreateSurface heat-values 1 width height pixel-width)))))
+
+#?(:clj
+   (defn ply-file-to-surface
+     "Load a ply file and convert it to a rectangular heat map."
+     ([filepath]
+      (MeshUtils/PlyToSurface filepath 10.0 20.0 304.8))))
 
 #?(:clj
    (defn load-surface
@@ -241,11 +246,6 @@
                (+ (* frequency (/ x size)) ;; x-axis variation
                   (* frequency (/ y size)) ;; y-axis variation
                   phase)))))))))              ;; Optional phase shift
-
-(surface
- (sinewave-heatmap 50 10 5 0)
- 1.0)
-
 
 (defn cube
   "Creates a cube with specified dimensions.
@@ -1126,9 +1126,10 @@ to the interpolated surface according to their barycentric coordinates."
                                                 (integer-vec3-sequence-to-native-integer-buffer normal-channels)
                                                 normal-channels)))
        color-channels (doto (.colorChannels ^IntegerVec4Vector
-                                            (if (seq? color-channels)
-                                              (integer-vec4-sequence-to-native-integer-buffer color-channels)
-                                              :color-channels))))))
+                                            (if (seq color-channels)
+                                              (let [[i j k l] color-channels]
+                                                (IntegerVec4. i j k l))
+                                              color-channels))))))
 
 #?(:clj
    (defn export-mesh
@@ -1172,19 +1173,21 @@ to the interpolated surface according to their barycentric coordinates."
       (get-mesh)
       (export-mesh "polyhedron-cube.glb"
                    :material (doto mesh-material
-                               (.vertColor (DoubleVec4Vector/FromArray
-                                            (double-array
-                                             (for [pt (range 8)
-                                                   ch (if (>= pt 4)
-                                                        [0.741176 0.745098 0.670588 1.0]
-                                                        [0.0 1.0 1.0 1.0])]
-                                               ch)))))))
+                               (.vertColor
+                                (DoubleVec4Vector/FromArray
+                                 (double-array
+                                  (for [pt (range 8)
+                                        ch (if (>= pt 4)
+                                             [0.741176 0.745098 0.670588 1.0]
+                                             [0.0 1.0 1.0 1.0])]
+                                    ch)))))))
 
 
+  (def ply-surf (ply-file-to-surface "/home/john/Workspace/modules/manifold/build/2024_10_27__11_50_18.ply"))
 
-  
-
-
+  (-> ply-surf
+      (get-mesh-gl)
+      (export-mesh "property.glb" :material (material :roughness 0.0 :metalness 0.0 :color-channels [3 4 5 -1])))
 
 
   )

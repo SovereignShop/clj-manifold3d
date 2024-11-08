@@ -277,6 +277,10 @@ Surface creates a manifold from a heatmap structure:
 
 Use the underlying `MeshUtils/CreateSurface` for max performance when generating large heatmaps. You can also use create a surface from a `.png`, `.jpg` or other image file using `load-surface`.
 
+There is also a primitive algorithm to parse a .ply point cloud to a surface mesh, useful primarily for geo-mapping applications. Here's an example from a ~8GB point cloud:
+
+![PLY](resources/images/ply_to_mesh.png)
+
 ## Three Point Circles & Arcs
 
 Three point circle: 
