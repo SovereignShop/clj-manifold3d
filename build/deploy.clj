@@ -46,4 +46,4 @@
 (defn -main [& args]
   (let [version (get-version-tag)]
     #_(build-jar version)
-    (deploy-lib version)))
+    (deploy-lib version)) )

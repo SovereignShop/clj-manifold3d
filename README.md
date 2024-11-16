@@ -281,6 +281,23 @@ There is also a primitive algorithm to parse a .ply point cloud to a surface mes
 
 ![PLY](resources/images/ply_to_mesh.png)
 
+## Color
+
+In addition to specifying a uniform color when exporting a manifold, color attributes can be added to a manifold's vertex properties. This ensures vertex colors preserved under boolean operations.
+
+``` clojure
+(->
+ (difference
+  (color (cube 20 20 20) [0 0 1 1])
+  (color (cube 20 20 40 true) [1 0 0 1]))
+ (get-mesh-gl)
+ (export-mesh "colored-manifold.glb"
+              :material (material :roughness 0.0 :metalness 0.0 :color-channels [3 4 5 6])))
+```
+
+![Color](resources/images/colored-manifold.png)
+
+
 ## Three Point Circles & Arcs
 
 Three point circle: 

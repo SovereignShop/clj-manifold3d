@@ -9,12 +9,13 @@
   Working with promises can be pretty annoying, especially without a type system that supports
   them well. For this reason, the CLJS API generally also works on non-promise objects."
   #?(:clj (:import
-           [manifold3d Manifold MeshUtils MeshUtils$LoftAlgorithm ManifoldVector]
+           [manifold3d Manifold MeshUtils MeshUtils$LoftAlgorithm ManifoldVector FloatVector]
            [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
            [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
             DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 IntegerVec4 MatrixTransforms DoubleVec4]
-           [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
+           [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]
+           [clojure.lang Indexed Seqable]))
   #?(:clj
      (:require
       [clj-manifold3d.impl :as impl]
@@ -991,6 +992,23 @@ to the interpolated surface according to their barycentric coordinates."
        11 :InvalidConstruction)))
 
 #?(:clj
+   (defn color
+     "Apply color properties to a manifold's. `color` is a normalized vector of [r g b alpha].
+  The color value is applied to each vertex and is preserved under boolean operations, as long as all
+  combined Manifolds have color channels defined. Optional `prop-index` specifies the offset of the color
+  property indices. For exported meshes to retain color peroperties, you must use `get-mesh-gl` and not
+  `get-mesh`.
+
+  Note, to export maniofolds with color propertes, you need to specify the color property index
+  in the material, e.x.  (material :roughness 0.0 :metalness 0.0 :color-channels [3 4 5 6])"
+     ([man rgba]
+      (color ^Manifold man rgba 3))
+     ([man rgba prop-index]
+      (let [[r g b a] rgba]
+        (MeshUtils/ColorVertices ^Manifold man (DoubleVec4. r g b a) prop-index)))))
+
+
+#?(:clj
    (defn- >polygons [x]
      (cond (satisfies? impl/IToPolygons x) (to-polygons x)
            (sequential? x) (let [pv (Polygons.)]
@@ -1151,43 +1169,3 @@ to the interpolated surface according to their barycentric coordinates."
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
-
-(comment
-
-  (def mesh-material (material :color [0.0 0.7 0.7 1] :metalness 0.3))
-
-  (-> (polyhedron [[0 0 0]
-                   [5 0 0]
-                   [5 5 0]
-                   [0 5 0]
-                   [0 0 5]
-                   [5 0 5]
-                   [5 5 5]
-                   [0 5 5]]
-                  [[0 3 2 1]
-                   [4 5 6 7]
-                   [0 1 5 4]
-                   [1 2 6 5]
-                   [2 3 7 6]
-                   [3 0 4 7]])
-      (get-mesh)
-      (export-mesh "polyhedron-cube.glb"
-                   :material (doto mesh-material
-                               (.vertColor
-                                (DoubleVec4Vector/FromArray
-                                 (double-array
-                                  (for [pt (range 8)
-                                        ch (if (>= pt 4)
-                                             [0.741176 0.745098 0.670588 1.0]
-                                             [0.0 1.0 1.0 1.0])]
-                                    ch)))))))
-
-
-  (def ply-surf (ply-file-to-surface "/home/john/Workspace/modules/manifold/build/2024_10_27__11_50_18.ply"))
-
-  (-> ply-surf
-      (get-mesh-gl)
-      (export-mesh "property.glb" :material (material :roughness 0.0 :metalness 0.0 :color-channels [3 4 5 -1])))
-
-
-  )
