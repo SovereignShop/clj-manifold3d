@@ -14,8 +14,7 @@
            [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
            [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
             DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 IntegerVec4 MatrixTransforms DoubleVec4]
-           [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]
-           [clojure.lang Indexed Seqable]))
+           [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
   #?(:clj
      (:require
       [clj-manifold3d.impl :as impl]
@@ -215,7 +214,13 @@
    (defn ply-file-to-surface
      "Load a ply file and convert it to a rectangular heat map."
      ([filepath]
-      (MeshUtils/PlyToSurface filepath 10.0 20.0 304.8))))
+      (MeshUtils/PlyToSurface filepath 10.0 20.0 304.8))
+     ([filepath cell-size]
+      (MeshUtils/PlyToSurface filepath cell-size 20.0 304.8))
+     ([filepath cell-size z-offset]
+      (MeshUtils/PlyToSurface filepath cell-size z-offset 304.8))
+     ([filepath cell-size z-offset scale-factor]
+      (MeshUtils/PlyToSurface filepath cell-size z-offset scale-factor))))
 
 #?(:clj
    (defn load-surface
