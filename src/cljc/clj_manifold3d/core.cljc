@@ -98,20 +98,6 @@
          (.put buf c))
        (.flip buf))))
 
-#?(:clj
-   (defn- integer-vec4-sequence-to-native-integer-buffer
-     "Maps a sequence of 4-sequences to a flat native-ordered row-major integer buffer."
-     [col]
-     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Integer/BYTES))
-                   (.order (ByteOrder/nativeOrder))
-                   (.asIntBuffer))]
-       (doseq [[^int a ^int b ^int c ^int d] col]
-         (.put buf a)
-         (.put buf b)
-         (.put buf c)
-         (.put buf d))
-       (.flip buf))))
-
 (defn manifold?
   "Returns true if `x` is a `Manifold`."
   [x]
@@ -228,30 +214,6 @@
       (MeshUtils/CreateSurface filename))
      ([filename pixel-width]
       (MeshUtils/CreateSurface filename pixel-width))))
-
-(defn sinewave-heatmap
-  "Generates a 3D sinewave heatmap.
-  The output is a vector of vectors representing a square matrix.
-  Each cell represents the height at that x/y coordinate based on a sinewave.
-
-  Args:
-  - size: The size of the matrix (width and height).
-  - frequency: Frequency of the sinewave (controls the number of wave oscillations).
-  - amplitude: Amplitude of the sinewave (controls the height of the wave).
-  - phase: Phase shift of the sinewave.
-
-  Returns a matrix where each value is the sinewave height at that coordinate."
-  [size frequency amplitude phase]
-  (vec
-   (for [y (range size)]
-     (vec
-      (for [x (range size)]
-        (+ (+ 10 amplitude)
-           (* amplitude
-              (Math/sin
-               (+ (* frequency (/ x size)) ;; x-axis variation
-                  (* frequency (/ y size)) ;; y-axis variation
-                  phase)))))))))              ;; Optional phase shift
 
 (defn cube
   "Creates a cube with specified dimensions.
@@ -1174,3 +1136,21 @@ to the interpolated surface according to their barycentric coordinates."
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
+
+
+(comment
+
+  (while true
+    (let [mesh (get-mesh (cube [10 10 10] true))
+          verts (.triVerts mesh)]
+      (System/gc)
+      (doall(eduction
+             (map (fn [idx]
+                    [(.x idx)
+                     (.y idx)
+                     (.z idx)]))
+             verts))))
+
+
+
+  )
