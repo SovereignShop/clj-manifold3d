@@ -9,8 +9,8 @@
 
   :clj-dev
   {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}
-                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.88"}
-                ;; {:local/root "../manifold/bindings/java/target/manifold3d-1.0.39.jar"}
+                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.89"}
+                #_{:local/root "../manifold/bindings/java/target/manifold3d-1.0.39.jar"}
 
                 jme-clj/jme-clj {:mvn/version "0.1.13"}
                 com.github.stephengold/Heart {:mvn/version "9.1.0"}}

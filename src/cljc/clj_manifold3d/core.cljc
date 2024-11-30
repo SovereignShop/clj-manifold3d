@@ -199,6 +199,7 @@
 #?(:clj
    (defn ply-file-to-surface
      "Load a ply file and convert it to a rectangular heat map."
+
      ([filepath]
       (MeshUtils/PlyToSurface filepath 10.0 20.0 304.8))
      ([filepath cell-size]
@@ -214,6 +215,13 @@
       (MeshUtils/CreateSurface filename))
      ([filename pixel-width]
       (MeshUtils/CreateSurface filename pixel-width))))
+
+#?(:clj
+   (defn load-image
+     ([filename depth]
+      (MeshUtils/LoadImage filename depth))
+     ([filename depth pixel-width]
+      (MeshUtils/LoadImage filename depth pixel-width))))
 
 (defn cube
   "Creates a cube with specified dimensions.
@@ -1140,17 +1148,16 @@ to the interpolated surface according to their barycentric coordinates."
 
 (comment
 
-  (while true
-    (let [mesh (get-mesh (cube [10 10 10] true))
-          verts (.triVerts mesh)]
-      (System/gc)
-      (doall(eduction
-             (map (fn [idx]
-                    [(.x idx)
-                     (.y idx)
-                     (.z idx)]))
-             verts))))
+  (def property (load-image "property_lines.png" 100.0))
 
+  (project property)
+
+  (-> property
+      (mirror [0 1 0])
+      (center)
+      (project)
+      (get-mesh-gl)
+      (export-mesh "property.glb" :material (material :metalness 0.0 :roughness 0.0 :color-channels [3 4 5 -1])))
 
 
   )
