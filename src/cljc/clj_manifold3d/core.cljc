@@ -550,8 +550,9 @@ to the interpolated surface according to their barycentric coordinates."
                                (.boundingBox man))))))
 
 #?(:clj
-   (defn get-height [obj]
+   (defn get-height
      "Get the z-height of a manifold or y-height of a cross section."
+     [obj]
      (let [x (impl/to-csg obj)]
        (cond (cross-section? obj) (-> ^CrossSection x (.bounds) (.Size) (.y))
              (manifold? obj) (-> ^Manifold x (.boundingBox) (.Size) (.z))))))
@@ -1086,6 +1087,34 @@ to the interpolated surface according to their barycentric coordinates."
           (.pushBack tv t))
         (MeshUtils/Loft sections ^DoubleMat4x3Vector tv (loft-algorithm->enum algorithm))))))
 
+
+(defprotocol IHalfEdge
+  (is-forward [this]))
+
+(defrecord Halfedge [start-vert end-vert paired-halfedge face]
+  IHalfEdge
+  (is-forward [this] (< start-vert end-vert)))
+
+#?(:clj
+   (defn get-halfedges
+     "Get halfedges of `man`."
+     [man]
+     (let [^ints halfedges (.toIntArray (.GetHalfedges ^Manifold man))]
+       (loop [idx 0
+              ret (transient [])]
+         (if (>= idx (alength halfedges))
+           (persistent! ret)
+           (recur (+ idx 4)
+                  (conj! ret (Halfedge. (aget halfedges idx)
+                                        (aget halfedges (+ idx 1))
+                                        (aget halfedges (+ idx 2))
+                                        (aget halfedges (+ idx 3))))))))))
+
+#?(:clj
+   (defn get-face-normals [man]
+     (let [face-normals (.toFloatArray (.GetFaceNormals ^Manifold man))]
+       (into [] (partition-all 3) face-normals))))
+
 #?(:clj
    (defn simplify
      "Remove vertices from contours in `cross-section` that are less than the specified distance
@@ -1158,6 +1187,5 @@ to the interpolated surface according to their barycentric coordinates."
       (project)
       (get-mesh-gl)
       (export-mesh "property.glb" :material (material :metalness 0.0 :roughness 0.0 :color-channels [3 4 5 -1])))
-
 
   )
