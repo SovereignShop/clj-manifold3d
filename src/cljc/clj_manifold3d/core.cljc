@@ -1100,7 +1100,7 @@ to the interpolated surface according to their barycentric coordinates."
    (defn get-halfedges
      "Get halfedges of `man`."
      [man]
-     (let [^ints halfedges (.toIntArray (.GetHalfedges ^Manifold man))]
+     (let [^ints halfedges (.toIntArray (.getHalfedges ^Manifold man))]
        (loop [idx 0
               ret (transient [])]
          (if (>= idx (alength halfedges))
@@ -1113,7 +1113,7 @@ to the interpolated surface according to their barycentric coordinates."
 
 #?(:clj
    (defn get-face-normals [man]
-     (let [face-normals (.toFloatArray (.GetFaceNormals ^Manifold man))]
+     (let [face-normals (.toFloatArray (.getFaceNormals ^Manifold man))]
        (into [] (partition-all 3) face-normals))))
 
 #?(:clj
@@ -1169,7 +1169,7 @@ to the interpolated surface according to their barycentric coordinates."
 
 (comment
 
-  (-> (DoubleMat3x4/IdentityMat)
+  (-> (frame)
       (rotate [0 (/ Math/PI 2) 0])
       (translate [0.0 0.0 100.0])
       (.getColumn 3)
@@ -1182,12 +1182,17 @@ to the interpolated surface according to their barycentric coordinates."
 
   (-> (DoubleMat2x3/I))
 
+  (-> (tetrahedron)
+      (get-halfedges))
+
   (seq (.getColumn m 3))
 
   (def property (load-image "property_lines.png" 100.0))
 
-  (-> (cube 10 10 10 true)
-      (color [0 0 1 0.7])
+  (-> (hull (cylinder 10 100)
+            (-> (sphere 10)
+                (translate [0 0 100])))
+      (color [0 0 1 1.0])
       (get-mesh-gl)
       (export-mesh "test.glb"
                    :material (material :metalness 0.0 :roughness 0.0 :color-idx 0 :alpha-idx 3)))
