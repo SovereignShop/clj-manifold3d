@@ -1112,6 +1112,36 @@ to the interpolated surface according to their barycentric coordinates."
                                         (aget halfedges (+ idx 3))))))))))
 
 #?(:clj
+   (defn get-vertices
+     "Get vertices of `man`."
+     [man]
+     (let [^floats vertices (.toFloatArray (.getVertices ^Manifold man))]
+       (loop [idx 0
+              ret (transient [])]
+         (if (>= idx (alength vertices))
+           (persistent! ret)
+           (recur
+            (+ idx 3)
+            (conj! ret [(aget vertices idx)
+                        (aget vertices (+ idx 1))
+                        (aget vertices (+ idx 2))])))))))
+
+#?(:clj
+   (defn get-triangles
+     "Get triangles of `man`."
+     [man]
+     (let [^ints triangles (.toIntArray (.getTriangles ^Manifold man))]
+       (loop [idx 0
+              ret (transient [])]
+         (if (>= idx (alength triangles))
+           (persistent! ret)
+           (recur
+            (+ idx 3)
+            (conj! ret [(aget triangles idx)
+                        (aget triangles (+ idx 1))
+                        (aget triangles (+ idx 2))])))))))
+
+#?(:clj
    (defn get-face-normals [man]
      (let [face-normals (.toFloatArray (.getFaceNormals ^Manifold man))]
        (into [] (partition-all 3) face-normals))))
@@ -1183,9 +1213,16 @@ to the interpolated surface according to their barycentric coordinates."
   (-> (DoubleMat2x3/I))
 
   (-> (tetrahedron)
-      (get-halfedges))
+      (.getTriangles)
+      (.toIntArray))
 
   (seq (.getColumn m 3))
+
+  (sphere 50 100)
+  (loft [(square 30 30 true)
+         (circle 15 100)]
+        [(frame)
+         (translate (frame) [0 0 30])])
 
   (def property (load-image "property_lines.png" 100.0))
 
