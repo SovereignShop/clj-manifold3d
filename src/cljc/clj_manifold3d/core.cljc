@@ -10,11 +10,11 @@
   them well. For this reason, the CLJS API generally also works on non-promise objects."
   #?(:clj
      (:import
-      [manifold3d Manifold MeshUtils MeshUtils$LoftAlgorithm ManifoldVector FloatVector]
+      [manifold3d Manifold MeshUtils MeshUtils$LoftAlgorithm ManifoldVector FloatVector UIntVector]
       [manifold3d.pub  SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
       [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO MeshGL]
-      [manifold3d.linalg DoubleVec3 DoubleVec2 DoubleMat3x4 DoubleMat2x3 IntegerVec4Vector DoubleMat3x4Vector
-       DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 IntegerVec4 MatrixTransforms DoubleVec4]
+      [manifold3d.linalg DoubleVec3 DoubleVec2 DoubleMat3x4 DoubleMat2x3 DoubleMat3x4Vector
+       MatrixTransforms DoubleVec4]
       [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
   #?(:clj
      (:require
@@ -59,6 +59,20 @@
          (.put buf c))
        (.flip buf))))
 
+#?(:clj
+   (defn- vec3-sequence-to-native-float-buffer
+     "Maps a sequence of 3-sequences to a flat row-major double buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Float/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asFloatBuffer))]
+       (doseq [[^float a ^float b ^float c] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c))
+       (.flip buf))))
+
+
 
 #?(:clj
    (defn- square-sequences-to-native-float-buffer
@@ -99,6 +113,20 @@
          (.put buf c))
        (.flip buf))))
 
+#?(:clj
+   (defn- vec3-sequence-to-native-long-buffer
+     "Maps a sequence of 3-sequences to a flat native-ordered row-major integer buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Long/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asLongBuffer))]
+       (doseq [[^long a ^long b ^long c] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c))
+       (.flip buf))))
+
+
 (defn manifold?
   "Returns true if `x` is a `Manifold`."
   [x]
@@ -123,15 +151,17 @@
 
 #?(:clj
    (defn mesh
-     "Convenience function to create a mesh from sequences. :vert-pos and :tri-verts should be included together. Others will be computed later if not provided.
-  For maximum java performance use FromBuffer constructors directly and use natively ordered structures that can provide java.nio buffers. If necessary, write meshing alorthims in c++ using
-  GLM directly and bind to them."
-     [& {:keys [tri-verts vert-pos vert-normal halfedge-tangent]}]
+     "Convenience function to create a mesh from sequences. `:vert-pos` is a
+  vector of [x y z] vertices. `:tri-verts` is a vector of [idx1 idx2 idx3]
+  vertex indices representing a triangular face. For maximum java performance
+  use FromBuffer constructors directly and use natively ordered structures that
+  can provide java.nio buffers. If necessary, write meshing alorthims in c++
+  using GLM directly and bind to them."
+     [& {:keys [tri-verts vert-pos]}]
      (cond-> (MeshGL.)
-       tri-verts (doto (.triVerts (IntegerVec3Vector/FromBuffer (integer-vec3-sequence-to-native-integer-buffer tri-verts))))
-       vert-pos (doto (.vertPos (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-pos))))
-       vert-normal (doto (.vertNormal (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-normal))))
-       halfedge-tangent (doto (.halfedgeTangent (DoubleVec4Vector/FromBuffer (double-vec4-sequence-to-native-double-buffer halfedge-tangent)))))))
+         ;; true (doto (.numProp 3))
+         tri-verts (doto (.triVerts (UIntVector/FromBuffer (vec3-sequence-to-native-long-buffer tri-verts))))
+         vert-pos (doto (.vertProperties (FloatVector/FromBuffer (vec3-sequence-to-native-float-buffer vert-pos)))))))
 
 (defn manifold
   "Creates a `Manifold` ."
@@ -560,10 +590,9 @@ to the interpolated surface according to their barycentric coordinates."
 
 #?(:clj
    (defn get-properties
-     ([manifold]
-      (let [props (.getProperties ^Manifold manifold)]
-        {:surface-area (double (.surfaceArea props))
-         :volume (double (.volume props))}))))
+     ([^Manifold manifold]
+      {:surface-area (double (.surfaceArea manifold))
+       :volume (double (.volume manifold))})))
 
 #?(:clj
    (defn area
@@ -1195,52 +1224,3 @@ to the interpolated surface according to their barycentric coordinates."
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
-
-
-(comment
-
-  (-> (frame)
-      (rotate [0 (/ Math/PI 2) 0])
-      (translate [0.0 0.0 100.0])
-      (.getColumn 3)
-      (seq))
-
-  (-> (DoubleMat3x4/IdentityMat)
-      (.mul 10.0)
-      (.getColumn 1)
-      (seq))
-
-  (-> (DoubleMat2x3/I))
-
-  (-> (tetrahedron)
-      (.getTriangles)
-      (.toIntArray))
-
-  (seq (.getColumn m 3))
-
-  (sphere 50 100)
-  (loft [(square 30 30 true)
-         (circle 15 100)]
-        [(frame)
-         (translate (frame) [0 0 30])])
-
-  (def property (load-image "property_lines.png" 100.0))
-
-  (-> (hull (cylinder 10 100)
-            (-> (sphere 10)
-                (translate [0 0 100])))
-      (color [0 0 1 1.0])
-      (get-mesh-gl)
-      (export-mesh "test.glb"
-                   :material (material :metalness 0.0 :roughness 0.0 :color-idx 0 :alpha-idx 3)))
-
-  (project property)
-
-  (-> property
-      (mirror [0 1 0])
-      (center)
-      (project)
-      (get-mesh-gl)
-      (export-mesh "property.glb" :material (material :metalness 0.0 :roughness 0.0 :color-channels [3 4 5 -1])))
-
-  )
