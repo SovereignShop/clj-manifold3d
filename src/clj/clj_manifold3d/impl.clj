@@ -1,7 +1,7 @@
 (ns clj-manifold3d.impl
   (:import [manifold3d Manifold ManifoldVector]
-           [manifold3d.pub SmoothnessVector Smoothness SimplePolygon OpType]
-           [manifold3d.manifold CrossSection MeshIO ExportOptions CrossSectionVector]
+           [manifold3d.pub SmoothnessVector Smoothness SimplePolygon OpType SimplePolygon Polygons]
+           [manifold3d.manifold CrossSection MeshIO ExportOptions CrossSectionVector CrossSection$FillRule]
            [manifold3d.linalg DoubleVec3 DoubleVec2 DoubleMat3x4 DoubleMat2x3 MatrixTransforms]))
 
 (defprotocol ITransformable
@@ -25,7 +25,12 @@
   Manifold
   (to-csg [this] this)
   CrossSection
-  (to-csg [this] this))
+  (to-csg [this] this)
+  Polygons
+  (to-csg [this] (CrossSection. this (.ordinal CrossSection$FillRule/NonZero)))
+  SimplePolygon
+  (to-csg [this] (CrossSection. (doto (Polygons.) (.pushBack this))
+                                (.ordinal CrossSection$FillRule/NonZero))))
 
 (extend-protocol ICSG
   Manifold
@@ -62,7 +67,11 @@
 (extend-protocol IToPolygons
   CrossSection
   (to-polygons [this]
-    (.toPolygons this)))
+    (.toPolygons this))
+  SimplePolygon
+  (to-polygons [this] ^Polygons (doto (Polygons.) (.pushBack this)))
+  Polygons
+  (to-polygons [this] this))
 
 (extend-protocol ITransformable
   CrossSection

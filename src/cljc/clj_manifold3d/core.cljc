@@ -159,9 +159,9 @@
   using GLM directly and bind to them."
      [& {:keys [tri-verts vert-pos]}]
      (cond-> (MeshGL.)
-         ;; true (doto (.numProp 3))
-         tri-verts (doto (.triVerts (UIntVector/FromBuffer (vec3-sequence-to-native-long-buffer tri-verts))))
-         vert-pos (doto (.vertProperties (FloatVector/FromBuffer (vec3-sequence-to-native-float-buffer vert-pos)))))))
+       ;; true (doto (.numProp 3))
+       tri-verts (doto (.triVerts (UIntVector/FromBuffer (vec3-sequence-to-native-long-buffer tri-verts))))
+       vert-pos (doto (.vertProperties (FloatVector/FromBuffer (vec3-sequence-to-native-float-buffer vert-pos)))))))
 
 (defn manifold
   "Creates a `Manifold` ."
@@ -322,7 +322,12 @@
   ([cross-section height n-divisions twist-degrees]
    (extrude cross-section height n-divisions twist-degrees [1.0 1.0]))
   ([cross-section height n-divisions twist-degrees scale-top]
-   #?(:clj (Manifold/Extrude (impl/to-csg cross-section) height n-divisions twist-degrees (DoubleVec2. (nth scale-top 0) (nth scale-top 1)))
+   #?(:clj
+      (Manifold/Extrude (impl/to-polygons cross-section)
+                        height
+                        n-divisions
+                        twist-degrees
+                        (DoubleVec2. (nth scale-top 0) (nth scale-top 1)))
       :cljs (update-manifold (js/Promise.all [*manifold-module* cross-section])
                              (fn [[module cross-section]]
                                (.setup module)
@@ -377,7 +382,7 @@ pseudo-normals to define the tangent vectors.
              (cond (manifold? csg) (.mirror ^Manifold csg (DoubleVec3. (nth normal 0) (nth normal 1) (nth normal 2)))
                    (cross-section? csg) (.mirror ^CrossSection csg (DoubleVec2. (nth normal 0) (nth normal 1)))
                    :else
-                   (throw (IllegalArgumentException. "Must be Manifold or CrossSection. Recieved: " (type csg)))))
+                   (throw (IllegalArgumentException. (str "Must be Manifold or CrossSection. Recieved: " (type csg))))))
       :cljs (update-manifold obj
                              (fn [man]
                                (.mirror man (clj->js normal)))))))
@@ -429,7 +434,7 @@ to the interpolated surface according to their barycentric coordinates."
   ([cross-section circular-segments]
    (revolve cross-section circular-segments 360.0))
   ([cross-section circular-segments degrees]
-   #?(:clj (Manifold/Revolve (impl/to-csg cross-section) circular-segments degrees)
+   #?(:clj (Manifold/Revolve (impl/to-polygons cross-section) circular-segments degrees)
       :cljs (.then (js/Promise.all #js [*manifold-module* cross-section])
                    (fn [[module cross-section]]
                      (.revolve module cross-section circular-segments degrees))))))
@@ -611,20 +616,6 @@ to the interpolated surface according to their barycentric coordinates."
               (update-manifold manifold
                                (fn [man]
                                  (.trimByPlane man #js [x y z] origin-offset)))))))
-
-#?(:clj
-   (defn slice
-     "Returns the cross-section of `manifold` that intersects the xy plane."
-     ([manifold]
-      ^CrossSection (.slice ^Manifold (impl/to-csg manifold)))
-     ([manifold height]
-      ^CrossSection (.slice ^Manifold (impl/to-csg manifold) height))))
-
-#?(:clj
-   (defn slices
-     "Returns a vector of `n-slices` evenly spaced cross-sections between `bottom-z` and `top-z`."
-     [manifold bottom-z top-z n-slices]
-     (vec ^CrossSectionVector (.slices ^Manifold manifold bottom-z top-z n-slices))))
 
 #?(:clj
    (defn project
@@ -812,17 +803,33 @@ to the interpolated surface according to their barycentric coordinates."
    (cross-section polygon-or-polygons :non-zero))
   ([polygon-or-polygons fill-rule]
    #?(:clj
-      (CrossSection. (if (number? (ffirst polygon-or-polygons))
-                       (SimplePolygon/FromArray (double-array (sequence cat polygon-or-polygons)))
-                       (let [polys (Polygons.)]
-                         (doseq [pts polygon-or-polygons]
-                           (.pushBack polys (SimplePolygon/FromArray (double-array (sequence cat pts)))))
-                         polys))
+      (CrossSection. (if (coll? polygon-or-polygons)
+                       (if (number? (ffirst polygon-or-polygons))
+                         (SimplePolygon/FromArray (double-array (sequence cat polygon-or-polygons)))
+                         (let [polys (Polygons.)]
+                           (doseq [pts polygon-or-polygons]
+                             (.pushBack polys (SimplePolygon/FromArray (double-array (sequence cat pts)))))
+                           polys))
+                       (impl/to-polygons polygon-or-polygons))
                      (fill-rule->enum fill-rule))
       :cljs (update-manifold *manifold-module*
                              (fn [module]
                                (.setup module)
                                (module.CrossSection. (clj->js polygon-or-polygons) fill-rule))))))
+
+#?(:clj
+   (defn slice
+     "Returns the cross-section of `manifold` that intersects the xy plane."
+     ([manifold]
+      (cross-section ^Polygons (.slice ^Manifold (impl/to-csg manifold))))
+     ([manifold height]
+      (cross-section ^Polygons (.slice ^Manifold (impl/to-csg manifold) height)))))
+
+#?(:clj
+   (defn slices
+     "Returns a vector of `n-slices` evenly spaced cross-sections between `bottom-z` and `top-z`."
+     [manifold bottom-z top-z n-slices]
+     (mapv cross-section (seq ^PolygonsVector (.slices ^Manifold manifold bottom-z top-z n-slices)))))
 
 #?(:clj
    (defn text
@@ -1224,3 +1231,23 @@ to the interpolated surface according to their barycentric coordinates."
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
+
+
+(comment
+
+  (-> (difference (color (sphere 100 100) [1 0 0 1])
+                  (color (cube 100 100 100 false) [0 0 1 1]))
+      (get-mesh-gl)
+      (export-mesh "test.glb" :material (material :roughness 0.0 :metalness 0.0 :color-idx 0 :alpha-idx 3)))
+
+  (slices (sphere 100 100) -50 50 20)
+
+  (-> (slice (sphere 100 100))
+      (impl/to-polygons)
+      (translate [100 0])
+      (revolve 100 180))
+
+  (-> (sphere 100 10)
+      (extrude 10))
+
+  )
