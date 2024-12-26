@@ -1,8 +1,8 @@
 (ns clj-manifold3d.impl
   (:import [manifold3d Manifold ManifoldVector]
-           [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon OpType]
+           [manifold3d.pub SmoothnessVector Smoothness SimplePolygon OpType]
            [manifold3d.manifold CrossSection MeshIO ExportOptions CrossSectionVector]
-           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 MatrixTransforms]))
+           [manifold3d.linalg DoubleVec3 DoubleVec2 DoubleMat3x4 DoubleMat2x3 MatrixTransforms]))
 
 (defprotocol ITransformable
   (rotate [x rv])
@@ -81,7 +81,7 @@
   (transform [this tf]
     (.transform this tf))
 
-  DoubleMat4x3
+  DoubleMat3x4
   (rotate [this rv]
     (MatrixTransforms/Rotate this (DoubleVec3. (nth rv 0) (nth rv 1) (nth rv 2))))
   (translate [this tv]
@@ -89,7 +89,7 @@
   (transform [this matrix]
     (MatrixTransforms/CombineTransforms this matrix))
 
-  DoubleMat3x2
+  DoubleMat2x3
   (rotate [this angle]
     (MatrixTransforms/Rotate this angle))
   (translate [this tv]

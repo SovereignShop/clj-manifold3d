@@ -8,13 +8,14 @@
   as a promise. To (mostly) support this, this library elects to accept promises at the API level.
   Working with promises can be pretty annoying, especially without a type system that supports
   them well. For this reason, the CLJS API generally also works on non-promise objects."
-  #?(:clj (:import
-           [manifold3d Manifold MeshUtils MeshUtils$LoftAlgorithm ManifoldVector FloatVector]
-           [manifold3d.pub DoubleMesh SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
-           [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO]
-           [manifold3d.glm DoubleVec3 DoubleVec2 DoubleMat4x3 DoubleMat3x2 IntegerVec4Vector DoubleMat4x3Vector
-            DoubleVec3Vector DoubleVec4Vector IntegerVec3Vector IntegerVec3 IntegerVec4 MatrixTransforms DoubleVec4]
-           [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
+  #?(:clj
+     (:import
+      [manifold3d Manifold MeshUtils MeshUtils$LoftAlgorithm ManifoldVector FloatVector UIntVector]
+      [manifold3d.pub  SmoothnessVector Smoothness SimplePolygon Polygons PolygonsVector OpType]
+      [manifold3d.manifold CrossSection CrossSectionVector Material ExportOptions MeshIO MeshGL]
+      [manifold3d.linalg DoubleVec3 DoubleVec2 DoubleMat3x4 DoubleMat2x3 DoubleMat3x4Vector
+       MatrixTransforms DoubleVec4]
+      [java.nio ByteBuffer ByteOrder DoubleBuffer IntBuffer]))
   #?(:clj
      (:require
       [clj-manifold3d.impl :as impl]
@@ -58,6 +59,20 @@
          (.put buf c))
        (.flip buf))))
 
+#?(:clj
+   (defn- vec3-sequence-to-native-float-buffer
+     "Maps a sequence of 3-sequences to a flat row-major double buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Float/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asFloatBuffer))]
+       (doseq [[^float a ^float b ^float c] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c))
+       (.flip buf))))
+
+
 
 #?(:clj
    (defn- square-sequences-to-native-float-buffer
@@ -98,6 +113,20 @@
          (.put buf c))
        (.flip buf))))
 
+#?(:clj
+   (defn- vec3-sequence-to-native-long-buffer
+     "Maps a sequence of 3-sequences to a flat native-ordered row-major integer buffer."
+     [col]
+     (let [buf (-> (ByteBuffer/allocateDirect (* (count col) 3 Long/BYTES))
+                   (.order (ByteOrder/nativeOrder))
+                   (.asLongBuffer))]
+       (doseq [[^long a ^long b ^long c] col]
+         (.put buf a)
+         (.put buf b)
+         (.put buf c))
+       (.flip buf))))
+
+
 (defn manifold?
   "Returns true if `x` is a `Manifold`."
   [x]
@@ -122,21 +151,23 @@
 
 #?(:clj
    (defn mesh
-     "Convenience function to create a mesh from sequences. :vert-pos and :tri-verts should be included together. Others will be computed later if not provided.
-  For maximum java performance use FromBuffer constructors directly and use natively ordered structures that can provide java.nio buffers. If necessary, write meshing alorthims in c++ using
-  GLM directly and bind to them."
-     [& {:keys [tri-verts vert-pos vert-normal halfedge-tangent]}]
-     (cond-> (DoubleMesh.)
-       tri-verts (doto (.triVerts (IntegerVec3Vector/FromBuffer (integer-vec3-sequence-to-native-integer-buffer tri-verts))))
-       vert-pos (doto (.vertPos (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-pos))))
-       vert-normal (doto (.vertNormal (DoubleVec3Vector/FromBuffer (double-vec3-sequence-to-native-double-buffer vert-normal))))
-       halfedge-tangent (doto (.halfedgeTangent (DoubleVec4Vector/FromBuffer (double-vec4-sequence-to-native-double-buffer halfedge-tangent)))))))
+     "Convenience function to create a mesh from sequences. `:vert-pos` is a
+  vector of [x y z] vertices. `:tri-verts` is a vector of [idx1 idx2 idx3]
+  vertex indices representing a triangular face. For maximum java performance
+  use FromBuffer constructors directly and use natively ordered structures that
+  can provide java.nio buffers. If necessary, write meshing alorthims in c++
+  using GLM directly and bind to them."
+     [& {:keys [tri-verts vert-pos]}]
+     (cond-> (MeshGL.)
+         ;; true (doto (.numProp 3))
+         tri-verts (doto (.triVerts (UIntVector/FromBuffer (vec3-sequence-to-native-long-buffer tri-verts))))
+         vert-pos (doto (.vertProperties (FloatVector/FromBuffer (vec3-sequence-to-native-float-buffer vert-pos)))))))
 
 (defn manifold
   "Creates a `Manifold` ."
   ([] #?(:clj (Manifold.)))
   ([mesh]
-   #?(:clj (Manifold. ^DoubleMesh mesh)
+   #?(:clj (Manifold. ^MeshGL mesh)
       :cljs (update-manifold *manifold-module*
                              (fn [mod]
                                (.setup mod)
@@ -303,7 +334,7 @@
   ([mesh]
    (smooth mesh []))
   ([mesh sharpened-edges]
-   #?(:clj (Manifold/Smooth ^DoubleMesh mesh
+   #?(:clj (Manifold/Smooth ^MeshGL mesh
                             (let [v (SmoothnessVector.)]
                               (doseq [{:keys [smoothness halfedge]} sharpened-edges]
                                 (.pushBack v (doto (Smoothness.)
@@ -559,10 +590,9 @@ to the interpolated surface according to their barycentric coordinates."
 
 #?(:clj
    (defn get-properties
-     ([manifold]
-      (let [props (.getProperties ^Manifold manifold)]
-        {:surface-area (double (.surfaceArea props))
-         :volume (double (.volume props))}))))
+     ([^Manifold manifold]
+      {:surface-area (double (.surfaceArea manifold))
+       :volume (double (.volume manifold))})))
 
 #?(:clj
    (defn area
@@ -636,35 +666,35 @@ to the interpolated surface according to their barycentric coordinates."
   This approach makes it easy to define \"paths\" of frames, where the next frame in the path is a function of the previous frame.
   "
      ([]
-      (DoubleMat4x3. 1))
+      (DoubleMat3x4/IdentityMat))
      ([v]
-      (DoubleMat4x3. v))
+      (.mul (DoubleMat3x4/IdentityMat) v))
      ([rx ry rz tr]
-      (DoubleMat4x3. (DoubleVec3. (nth rx 0) (nth rx 1) (nth rx 2))
+      (DoubleMat3x4. (DoubleVec3. (nth rx 0) (nth rx 1) (nth rx 2))
                      (DoubleVec3. (nth ry 0) (nth ry 1) (nth ry 2))
                      (DoubleVec3. (nth rz 0) (nth rz 1) (nth rz 2))
                      (DoubleVec3. (nth tr 0) (nth tr 1) (nth tr 2))))
      ([c0 c1 c2 c3
        c4 c5 c6 c7
        c8 c9 c10 c11]
-      (DoubleMat4x3. c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11))))
+      (DoubleMat3x4. c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11))))
 
 #?(:clj
    (defn frame-2d
      "Create a matrix representing a 2D affine transformation."
      ([]
-      (DoubleMat3x2. 1))
+      (DoubleMat2x3/IdentityMat))
      ([x]
-      (DoubleMat3x2. x))
+      (DoubleMat2x3. x))
      ([rx tr]
       (frame-2d rx [(nth rx 1) (- (nth rx 0))] tr))
      ([rx ry tr]
-      (DoubleMat3x2. (DoubleVec2. (nth rx 0) (nth rx 1))
+      (DoubleMat2x3. (DoubleVec2. (nth rx 0) (nth rx 1))
                      (DoubleVec2. (nth ry 0) (nth ry 1))
                      (DoubleVec2. (nth tr 0) (nth tr 1))))
      ([c0 c1 c2
        c3 c4 c5]
-      (DoubleMat3x2. c0 c1 c2 c3 c4 c5))))
+      (DoubleMat2x3. c0 c1 c2 c3 c4 c5))))
 
 (defn translate
   "Translates a `Manifold` or `CrossSection` with the given vector."
@@ -760,9 +790,9 @@ to the interpolated surface according to their barycentric coordinates."
    (defn get-mesh-gl
      "Calculates and returns the Manifold's mesh. Note that most of the CSG work is done when running this function."
      ([manifold]
-      (.getMeshGL ^Manifold (impl/to-csg manifold) (IntegerVec3. 0 1 2)))
-     ([manifold normalIdx]
-      (.getMeshGL ^Manifold (impl/to-csg manifold) (IntegerVec3. (nth normalIdx 0) (nth normalIdx 1) (nth normalIdx 1))))))
+      (.getMeshGL ^Manifold (impl/to-csg manifold) -1))
+     ([manifold normal-idx]
+      (.getMeshGL ^Manifold (impl/to-csg manifold) normal-idx))))
 
 #?(:clj
    (defn- fill-rule->enum [fill-rule]
@@ -1051,7 +1081,7 @@ to the interpolated surface according to their barycentric coordinates."
   (cons (rem (* 2 Math/PI) 0.2) (range (quot (* 2 Math/PI) 0.2)))))"
      ([loft-segments]
       (let [cv (PolygonsVector.)
-            fv (DoubleMat4x3Vector.)
+            fv (DoubleMat3x4Vector.)
             first-seg (first loft-segments)
             last-cross-section (:cross-section first-seg)
             last-frame (or (:frame first-seg) (frame 1))
@@ -1082,10 +1112,10 @@ to the interpolated surface according to their barycentric coordinates."
                          (doseq [c cross-sections]
                            (.pushBack cv (>polygons c)))
                          cv))
-            tv (DoubleMat4x3Vector.)]
-        (doseq [^DoubleMat4x3 t frames]
+            tv (DoubleMat3x4Vector.)]
+        (doseq [^DoubleMat3x4 t frames]
           (.pushBack tv t))
-        (MeshUtils/Loft sections ^DoubleMat4x3Vector tv (loft-algorithm->enum algorithm))))))
+        (MeshUtils/Loft sections ^DoubleMat3x4Vector tv (loft-algorithm->enum algorithm))))))
 
 
 (defprotocol IHalfEdge
@@ -1099,7 +1129,7 @@ to the interpolated surface according to their barycentric coordinates."
    (defn get-halfedges
      "Get halfedges of `man`."
      [man]
-     (let [^ints halfedges (.toIntArray (.GetHalfedges ^Manifold man))]
+     (let [^ints halfedges (.toIntArray (.getHalfedges ^Manifold man))]
        (loop [idx 0
               ret (transient [])]
          (if (>= idx (alength halfedges))
@@ -1111,8 +1141,38 @@ to the interpolated surface according to their barycentric coordinates."
                                         (aget halfedges (+ idx 3))))))))))
 
 #?(:clj
+   (defn get-vertices
+     "Get vertices of `man`."
+     [man]
+     (let [^floats vertices (.toFloatArray (.getVertices ^Manifold man))]
+       (loop [idx 0
+              ret (transient [])]
+         (if (>= idx (alength vertices))
+           (persistent! ret)
+           (recur
+            (+ idx 3)
+            (conj! ret [(aget vertices idx)
+                        (aget vertices (+ idx 1))
+                        (aget vertices (+ idx 2))])))))))
+
+#?(:clj
+   (defn get-triangles
+     "Get triangles of `man`."
+     [man]
+     (let [^ints triangles (.toIntArray (.getTriangles ^Manifold man))]
+       (loop [idx 0
+              ret (transient [])]
+         (if (>= idx (alength triangles))
+           (persistent! ret)
+           (recur
+            (+ idx 3)
+            (conj! ret [(aget triangles idx)
+                        (aget triangles (+ idx 1))
+                        (aget triangles (+ idx 2))])))))))
+
+#?(:clj
    (defn get-face-normals [man]
-     (let [face-normals (.toFloatArray (.GetFaceNormals ^Manifold man))]
+     (let [face-normals (.toFloatArray (.getFaceNormals ^Manifold man))]
        (into [] (partition-all 3) face-normals))))
 
 #?(:clj
@@ -1134,24 +1194,15 @@ to the interpolated surface according to their barycentric coordinates."
   :vert-color - ([[r g b alpha] ...]) a color attribute for each vertex. Length must match vert-pos of the mesh.
   :normal-channels - ([[i j k] ...]) For MeshGL exports (not yet supported). Indices where the normal channels can be found.
   :color-channels - ([[i j k l] ...]) For MeshGL exports (not yet supported). Indicies where color channels can be found."
-     [& {:keys [roughness metalness color vert-color normal-channels color-channels]}]
+     [& {:keys [roughness metalness color alpha normal-idx color-idx alpha-idx]}]
      (cond-> (Material.)
        roughness (doto (.roughness roughness))
        metalness (doto (.metalness metalness))
-       color (doto (.color (DoubleVec4. (nth color 0) (nth color 1) (nth color 2) (nth color 3))))
-       vert-color (doto (.vertColor ^DoubleVec4Vector
-                                    (if (seq? vert-color)
-                                      (double-vec4-sequence-to-native-double-buffer vert-color)
-                                      vert-color)))
-       normal-channels (doto (.normalChannels ^IntegerVec3Vector
-                                              (if (seq? normal-channels)
-                                                (integer-vec3-sequence-to-native-integer-buffer normal-channels)
-                                                normal-channels)))
-       color-channels (doto (.colorChannels ^IntegerVec4Vector
-                                            (if (seq color-channels)
-                                              (let [[i j k l] color-channels]
-                                                (IntegerVec4. i j k l))
-                                              color-channels))))))
+       color (doto (.color (DoubleVec3. (nth color 0) (nth color 1) (nth color 2))))
+       alpha (doto (.alpha alpha))
+       normal-idx (doto (.normalIdx normal-idx))
+       color-idx (doto (.colorIdx color-idx))
+       alpha-idx (doto (.alphaIdx alpha-idx)))))
 
 #?(:clj
    (defn export-mesh
@@ -1173,19 +1224,3 @@ to the interpolated surface according to their barycentric coordinates."
       (MeshIO/ImportMesh filename force-cleanup?))))
 
 (defn -main [& args])
-
-
-(comment
-
-  (def property (load-image "property_lines.png" 100.0))
-
-  (project property)
-
-  (-> property
-      (mirror [0 1 0])
-      (center)
-      (project)
-      (get-mesh-gl)
-      (export-mesh "property.glb" :material (material :metalness 0.0 :roughness 0.0 :color-channels [3 4 5 -1])))
-
-  )

@@ -10,7 +10,7 @@
   :clj-dev
   {:extra-deps {badigeon/badigeon {:mvn/version "1.7"}
                 ;; cider/cider-nrepl {:mvn/version "0.50.2"}
-                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "1.0.89"}
+                org.clojars.cartesiantheatrics/manifold3d$linux-x86_64 {:mvn/version "2.0.3"}
                 #_{:local/root "../manifold/bindings/java/target/manifold3d-1.0.39.jar"}
                 com.billpiel/sayid {:mvn/version "0.0.18"}
                 org.clojure/clojure {:mvn/version "1.12.0"}
