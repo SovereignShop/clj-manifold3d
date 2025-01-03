@@ -298,7 +298,7 @@
                                 (.cylinder module height radius-low radius-high circular-segments center?))))))
 
 (defn sphere
-  "Creates a sphere with given `radius`. `circular-radius` determins the number of segments around z-axis and y-axis."
+  "Creates a sphere with given `radius`. `circular-radius` determines the number of segments around z-axis and y-axis."
   ([radius]
    (sphere radius 0))
   ([radius circular-segments]
@@ -539,20 +539,22 @@ to the interpolated surface according to their barycentric coordinates."
 
 (defn compose
   "Purely topological join of a sequence of manifolds. Care should be taken to avoid overlapping results."
-  [manifolds]
-  #?(:clj (if (manifold? (first manifolds))
-            (Manifold/Compose (let [v (ManifoldVector.)]
-                                (doseq [man manifolds]
-                                  (.pushBack v man))
-                                v))
-            (CrossSection/Compose (let [v (CrossSectionVector.)]
-                                    (doseq [man manifolds]
-                                      (.pushBack v man))
-                                    v)))
-     :cljs (update-manifold *manifold-module*
-                            (fn [module]
-                              (.setup module)
-                              (.compose (clj->js manifolds))))))
+  ([manifolds]
+   #?(:clj (if (manifold? (first manifolds))
+             (Manifold/Compose (let [v (ManifoldVector.)]
+                                 (doseq [man manifolds]
+                                   (.pushBack v man))
+                                 v))
+             (CrossSection/Compose (let [v (CrossSectionVector.)]
+                                     (doseq [man manifolds]
+                                       (.pushBack v man))
+                                     v)))
+      :cljs (update-manifold *manifold-module*
+                             (fn [module]
+                               (.setup module)
+                               (.compose (clj->js manifolds))))))
+  ([man & mans]
+   (compose (cons man mans))))
 
 (defn decompose
   "Inverse of compose."
@@ -1128,7 +1130,7 @@ to the interpolated surface according to their barycentric coordinates."
 (defprotocol IHalfEdge
   (is-forward [this]))
 
-(defrecord Halfedge [start-vert end-vert paired-halfedge face]
+(defrecord Halfedge [start-vert end-vert paired-halfedge]
   IHalfEdge
   (is-forward [this] (< start-vert end-vert)))
 
@@ -1141,11 +1143,10 @@ to the interpolated surface according to their barycentric coordinates."
               ret (transient [])]
          (if (>= idx (alength halfedges))
            (persistent! ret)
-           (recur (+ idx 4)
+           (recur (+ idx 3)
                   (conj! ret (Halfedge. (aget halfedges idx)
                                         (aget halfedges (+ idx 1))
-                                        (aget halfedges (+ idx 2))
-                                        (aget halfedges (+ idx 3))))))))))
+                                        (aget halfedges (+ idx 2))))))))))
 
 #?(:clj
    (defn get-vertices

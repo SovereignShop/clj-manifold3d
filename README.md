@@ -40,30 +40,91 @@ cmake --install . --config Release
 
 The ClojureScript lib is not yet well supported or available via. Maven. You'll have to clone the repo and move `public/manifold.wasm` into `public/js/`. Run `npm install` to install the gltf (for rendering meshes) then connect via. shadow. There's a half-baked function called `createGLTF` in `manifold_viewer.js` that will take a manifold and throw it onto the `model-viewer` element defined in the index.html.
 
-# Documentation
-
-See the core namespace for some documentation. Refer to the original library for more complete documentation. 
-
 # Examples
 
-Examples should look very familiar if you've ever used OpenSCAD.
+Examples should look familiar if you've ever used OpenSCAD.
+
+## Manifolds
+
+Manifolds are the core datatype representing a 3D object. They are water-tight meshes comprised of triangular faces. They are guaranteed closed under the fundamental CSG operations: `union`, `difference`, and `intersection`.
+
+``` clojure
+(let [cube (m/cube 20 20 20 true)
+      sphere (m/sphere 12 30)]
+  (-> (m/union
+       (-> (m/union cube sphere)
+           (m/translate [30 0 0]))
+       (-> (m/difference cube sphere)
+           (m/translate [-30 0 0]))
+       (m/intersection cube sphere))
+      (m/get-mesh)
+      (m/export-mesh "manifolds.glb" :material mesh-material)))
+```
+
+![Manifold](resources/images/manifold.glb)
+
+## Cross Sections
+
+Cross Sections represent 2D shapes. There are basic cross section constructors like `square` and `circle`, or they can be constructed from one or multiple polygons (vertex sequences).
+
+``` clojure
+(-> (m/cross-section (cons [0 0]
+                           (for [i (range 18)]
+                             [(* 20 (Math/cos (* i (/ (* 2 Math/PI) 19))))
+                              (* 20 (Math/sin (* i (/ (* 2 Math/PI) 19))))])))
+    (m/extrude 1)
+    (m/get-mesh)
+    (m/export-mesh "cross-section.glb" :material mesh-material))
+```
+
+![Cross Section](resources/images/cross-section.png)
+
+Cross Sections are (roughly) isomorphic to a set of polygons for which vertex order determines whether a polygon encodes a hole.
+
+``` clojure
+(-> (m/cross-section [(for [i (range 20)]
+                        [(* 20 (Math/cos (* i (/ (* 2 Math/PI) 19))))
+                         (* 20 (Math/sin (* i (/ (* 2 Math/PI) 19))))])
+                      (reverse
+                       (for [i (range 20)]
+                         [(* 18 (Math/cos (* i (/ (* 2 Math/PI) 19))))
+                          (* 18 (Math/sin (* i (/ (* 2 Math/PI) 19))))]))])
+    (m/extrude 1)
+    (m/get-mesh)
+    (m/export-mesh "cross-section-with-hole.glb" :material mesh-material))
+```
+
+![Cross Section With Hole](resources/images/cross-section-with-hole.png)
+
+## Revolve
+
+``` clojure
+(let [m (-> (m/cross-section [[-10 0] [10 0] [0 10]])
+            (m/translate [30 0]))]
+  (-> (m/difference m (m/offset m -1))
+      (m/revolve 50 135)
+      (m/get-mesh)
+      (m/export-mesh "revolve.glb" :material mesh-material)))
+```
+
+![Partial revolve](resources/images/revolution.png)
+
+
 
 ## 2D hulls
 
 ``` clojure
-(require '[clj-manifold3d.core 
-           :refer [cube cylinder sphere cylinder extrude cross-section frame square circle
-                   union difference intersection translate get-mesh export-mesh status rotate
-                   hull revolve offset refine smooth loft scale material text scale-to-height
-                   three-point-arc frame-2d transform slice tetrahedron slices polyhedron]])
+(require '[clj-manifold3d.core :as m])
                                        
-
-(-> (hull (circle 5)
-          (-> (square 10 10 true)
-              (translate [30 0])))
-    (extrude 80 70 180 [0.7 0.7])
-    (get-mesh)
-    (export-mesh "hull2D.stl"))
+(def mesh-material (m/material :roughness 0.0 :metalness 0.0 :color [0.0 0.7 0.7 1]))
+                                       
+(-> (m/hull
+     (m/circle 5)
+     (-> (m/square 10 10 true)
+         (m/translate [30 0])))
+    (m/extrude 80 70 180 [0.7 0.7])
+    (m/get-mesh)
+    (m/export-mesh "hull2D.glb" :material mesh-material))
 ```
 
 ![2D hull](resources/images/2D-hull.png)
@@ -71,47 +132,34 @@ Examples should look very familiar if you've ever used OpenSCAD.
 ## 3D hulls
 
 ``` clojure
-(-> (hull (cylinder 2 12 12 120)
-          (-> (sphere 4 120)
-              (translate [0 0 20])))
-    (get-mesh)
-    (export-mesh "hull3D.stl"))
+(-> (m/hull (m/cylinder 2 12 12 120)
+            (-> (m/sphere 4 120)
+                (m/translate [0 0 20])))
+    (m/get-mesh)
+    (m/export-mesh "hull3D.glb"))
 ```
 
 ![3D hull](resources/images/3D-hull.png)
 
-## Partial revolutions
-
-``` clojure
-(let [m (-> (cross-section [[-10 0] [10 0] [0 10]])
-            (translate [30 0]))]
-  (-> (difference m (offset m -1))
-      (revolve 50 135)
-      (get-mesh)
-      (export-mesh "revolve.stl")))
-```
-
-![Partial revolve](resources/images/revolution.png)
-
 ## Polyhedron
 
 ``` clojure
-(-> (polyhedron [[0 0 0]
-                 [5 0 0]
-                 [5 5 0]
-                 [0 5 0]
-                 [0 0 5]
-                 [5 0 5]
-                 [5 5 5]
-                 [0 5 5]]
-                [[0 3 2 1]
-                 [4 5 6 7]
-                 [0 1 5 4]
-                 [1 2 6 5]
-                 [2 3 7 6]
-                 [3 0 4 7]])
-    (get-mesh)
-    (export-mesh "polyhedron-cube.stl"))
+(-> (m/polyhedron [[0 0 0]
+                   [5 0 0]
+                   [5 5 0]
+                   [0 5 0]
+                   [0 0 5]
+                   [5 0 5]
+                   [5 5 5]
+                   [0 5 5]]
+                  [[0 3 2 1]
+                   [4 5 6 7]
+                   [0 1 5 4]
+                   [1 2 6 5]
+                   [2 3 7 6]
+                   [3 0 4 7]])
+    (m/get-mesh)
+    (m/export-mesh "polyhedron-cube.glb" :material mesh-material))
 ```
 
 ![Partial revolve](resources/images/polyhedron.png)
@@ -119,7 +167,7 @@ Examples should look very familiar if you've ever used OpenSCAD.
 
 ## Frames
 
-Transform frames, which are 4x3 affine transformation matrices, can be manipulated similar to manifolds.
+Transform frames, which are 3x4 affine transformation matrices, can be manipulated similar to manifolds.
 
 
 ``` clojure
@@ -134,10 +182,12 @@ Frames transform slightly differently than manifolds. The rotation components ar
 
 
 ``` clojure
-(-> (cylinder 50 5)
-    (transform (-> (frame 1)
-                   (rotate [0 (/ Math/PI 4) 0])
-                   (translate [0 0 30]))))
+(-> (m/cylinder 50 5)
+    (m/transform (-> (m/frame 1)
+                     (m/rotate [0 (/ Math/PI 4) 0])
+                     (m/translate [0 0 30])))
+    (m/get-mesh)
+    (m/export-mesh "transform.glb" :material mesh-material)) 
 ```
 ![Tranform](resources/images/transform.png)
 
@@ -146,8 +196,8 @@ Frames transform slightly differently than manifolds. The rotation components ar
 
 ``` clojure
 (mapv vec
-      (-> (frame-2d 1)
-          (translate [0 10])
+      (-> (m/frame-2d 1)
+          (m/translate [0 10])
           (vec)))
 ;; => [[1.0 0.0] [0.0 1.0] [0.0 0.0]]
 ```
@@ -155,45 +205,46 @@ Frames transform slightly differently than manifolds. The rotation components ar
 
 ## Loft
 
+Loft connects a series of cross sections positioned in 3D space to form a manifold. Edges are constructed between vertices of adjacent cross sections.
+
 ``` clojure
-(-> (let [c (difference (square 10 10 true) (square 8 8 true))]
-      (loft [c (scale c [1.5 1.5]) c]
-            [(frame 1)
-             (-> (frame 1) (translate [0 0 15]))
-             (-> (frame 1) (translate [0 0 30]))]))
-    (get-mesh)
-    (export-mesh "loft.stl"))
+(-> (let [c (m/difference (m/square 10 10 true) (m/square 8 8 true))]
+      (m/loft [c (m/scale c [1.5 1.5]) c]
+              [(m/frame 1)
+               (m/translate (m/frame) [0 0 15])
+               (m/translate (m/frame) [0 0 30])]))
+    (m/get-mesh)
+    (m/export-mesh "loft.glb" :material mesh-material))
 ```
 
 ![Partial revolve](resources/images/simple-loft.png)
 
-Loft and also handle one-to-many and many-to-one vertex mappings:
+Loft and also handle one-to-many and many-to-one vertex mappings.
 
 ``` clojure
-(-> (loft [(circle 20 15)
-           (square 30 30 true)
-           (circle 20 20)]
-          [(frame 1)
-           (-> (frame 1) (translate [0 0 15]))
-           (-> (frame 1) (translate [0 0 30]))])
-    (get-mesh)
-    (export-mesh "monomorphic-loft.stl"))
+(-> (m/loft [(m/circle 20 15)
+             (m/square 30 30 true)
+             (m/circle 20 20)]
+            [(m/frame 1)
+             (m/translate (m/frame) [0 0 15])
+             (m/translate (m/frame) [0 0 30])])
+    (m/get-mesh)
+    (m/export-mesh "monomorphic-loft.glb" :material mesh-material))
 ```
 
 ![Monomorphic Loft](resources/images/monomorphic-loft.png)
 
 
-There is also a single arity version of loft:
+There is also a single arity version of loft.
 
 ``` clojure
-(-> (loft [{:cross-section (circle 50 12)
-            :frame (frame 1)}
-           {:frame (-> (frame 1) (translate [0 0 20]))}
-           {:frame (-> (frame 1) (translate [0 0 20]))
-            :cross-section (circle 46 12)}
-           {:frame (-> (frame 1) (translate [0 0 3]))}])
-    (get-mesh)
-    (export-mesh "single-arity-loft.stl"))
+(-> (m/loft [{:cross-section (m/circle 50 12)
+              :frame (m/frame)}
+             {:frame (m/translate (m/frame) [0 0 20])}
+             {:cross-section (m/circle 46 12)}
+             {:frame (m/translate (m/frame) [0 0 3])}])
+    (m/get-mesh)
+    (m/export-mesh "single-arity-loft.glb" :material mesh-material))
 ```
 
 
@@ -202,11 +253,11 @@ There is also a single arity version of loft:
 ## Text
 
 ``` clojure
-(-> (text "resources/fonts/Cinzel-Regular.ttf" "Manifold" 10 20 :non-zero)
-    (scale-to-height 100)
-    (extrude 20)
-    (get-mesh)
-    (export-mesh "text.glb" :material mesh-material))
+(-> (m/text "resources/fonts/Cinzel-Regular.ttf" "Manifold" 10 20 :non-zero)
+    (m/scale-to-height 100)
+    (m/extrude 20)
+    (m/get-mesh)
+    (m/export-mesh "text.glb" :material mesh-material))
 ```
 ![Text](resources/images/text.png)
 
@@ -215,10 +266,10 @@ There is also a single arity version of loft:
 Slice solves for the cross-section of a manifold that intersects the x/y plane.
 
 ``` clojure
-(-> (slice (scale (tetrahedron) [5 10 15]))
-    (extrude 1/2)
-    (get-mesh)
-    (export-mesh "slice.glb" :material mesh-material))
+(-> (m/slice (m/scale (m/tetrahedron) [5 10 15]))
+    (m/extrude 1/2)
+    (m/get-mesh)
+    (m/export-mesh "slice.glb" :material mesh-material))
 ```
 
 ![Slice](resources/images/slice.png)
@@ -226,21 +277,20 @@ Slice solves for the cross-section of a manifold that intersects the x/y plane.
 There is an efficient aglorithm that solves for N equally spaces slices.
 
 ``` clojure
-(-> (union
-     (for [[i slice] (map-indexed vector (slices (scale (tetrahedron) [5 10 15]) 5 10 10) )]
+(-> (m/union
+     (for [[i slice] (map-indexed vector (m/slices (m/scale (m/tetrahedron) [5 10 15]) 5 10 10) )]
        (-> slice
-           (extrude 1/8)
-           (translate [0 0 (* i 0.5)]))))
-    (get-mesh)
-    (export-mesh "slices.glb" :material mesh-material))
-
+           (m/extrude 1/8)
+           (m/translate [0 0 (* i 0.5)]))))
+    (m/get-mesh)
+    (m/export-mesh "slices.glb" :material mesh-material))
 ```
 
 ![Slices](resources/images/slices.png)
 
 ## Surface 
 
-Surface creates a manifold from a heatmap structure:
+Surface creates a manifold from a heatmap structure.
 
 ``` clojure
 (defn sinewave-heatmap
@@ -265,12 +315,12 @@ Surface creates a manifold from a heatmap structure:
               (Math/sin
                (+ (* frequency (/ x size))
                   (* frequency (/ y size))
-                  phase))))))))) 
+                  phase)))))))))
 
 (-> (sinewave-heatmap 50 10 5 0)
-    (surface 1.0)
-    (get-mesh)
-    (export-mesh "sine-wave-surface.glb" :material mesh-material))
+    (m/surface 1.0)
+    (m/get-mesh)
+    (m/export-mesh "sine-wave-surface.glb" :material mesh-material))
 ```
 
 ![Slices](resources/images/sine-wave-surface.png)
@@ -287,55 +337,125 @@ In addition to specifying a uniform color when exporting a manifold, color attri
 
 ``` clojure
 (->
- (difference
-  (color (cube 20 20 20) [0 0 1 1])
-  (color (cube 20 20 40 true) [1 0 0 1]))
- (get-mesh-gl)
- (export-mesh "colored-manifold.glb"
-              :material (material :roughness 0.0 :metalness 0.0 :color-channels [3 4 5 6])))
+ (m/difference
+  (m/color (m/cube 20 20 20) [0 0 1 1])
+  (m/color (m/cube 20 20 40 true) [1 0 0 1]))
+ (m/get-mesh-gl)
+ (m/export-mesh "colored-manifold.glb"
+                :material (m/material :roughness 0.0 :metalness 0.0 :color-idx 0)))
 ```
 
 ![Color](resources/images/colored-manifold.png)
 
+## Compose
+
+`compose` combines manifolds or cross sections together without performing any CSG operations on them. 
+
+``` clojure
+(-> (m/compose
+     (m/color (m/cube 30 30 30 true)
+              [1 1 1 0.5])
+     (m/color (m/sphere 12 40)
+              [0 0 1 1.0]))
+    (m/get-mesh)
+    (m/export-mesh "compose.glb"
+                   :material (m/material :roughness 0.0 :metalness 0.0 :color-idx 0 :alpha-idx 3)))
+```
+
+![Compose](resources/images/compose.png)
 
 ## Three Point Circles & Arcs
 
-Three point circle: 
+Define a circle by providing three points that its perimeter intersects.
 
 ``` clojure
 (let [p1 [0 0] p2 [1 12] p3 [15 0]]
-  (-> (difference
-       (circle p1 p2 p3 100)
-       (union
+  (-> (m/difference
+       (m/circle p1 p2 p3 100)
+       (m/union
         (for [p [p1 p2 p3]]
-          (-> (circle 1 10)
-              (translate p)))))
-      (extrude 1)
-      (get-mesh)
-      (export-mesh "three-point-circle.glb" :material mesh-material)))
+          (-> (m/circle 1 10)
+              (m/translate p)))))
+      (m/extrude 1)
+      (m/get-mesh)
+      (m/export-mesh "three-point-circle.glb" :material mesh-material)))
 ```
 
 ![Three Point Circle](resources/images/three-point-circle.png)
 
-three point arc:
+Likewise for partial circles/arcs.
 
 ``` clojure
 (let [p1 [0 0] p2 [2 5] p3 [-6 10]]
-  (-> (union
-       (three-point-arc p1 p2 p3 20)
-       (union
+  (-> (m/union
+       (m/three-point-arc p1 p2 p3 20)
+       (m/union
         (for [p [p1 p2 p3]]
-          (-> (circle 1 10)
-              (translate p)))))
-      (extrude 1)
-      (get-mesh)
-      (export-mesh "three-point-arc.glb" :material mesh-material)))
+          (-> (m/circle 1 10)
+              (m/translate p)))))
+      (m/extrude 1)
+      (m/get-mesh)
+      (m/export-mesh "three-point-arc.glb" :material mesh-material)))
 ```
 
 ![Three Point Circle](resources/images/three-point-arc.png)
 
 Use `three-point-arc-points` to get a vector of the points corresponding to the arc segment.
 
+## Get Vertices 
+
+Get the vertices of a Manifold using `get-vertices`:
+
+``` clojure
+(-> (let [verts (m/get-vertices (m/cube 20 20 20 true))]
+      (m/union
+       (for [vert verts]
+         (-> (m/sphere 2 20)
+             (m/translate vert)))))
+    (m/get-mesh)
+    (m/export-mesh "get-vertices.glb" :material mesh-material))
+```
+
+![Get Vertices](resources/images/get-vertices.png)
+
+## Get Halfedges
+
+You can get the Halfedges of a Manifold using `get-halfgedges`:
+
+```clojure
+(-> (let [m (m/cube 40 40 40 true)
+          verts (m/get-vertices m)
+          halfedges (m/get-halfedges m)]
+      (m/compose
+       (cons (m/color m [0 1 0 0.4])
+             (for [halfedge halfedges]
+               (let [v1 (nth verts (:start-vert halfedge))
+                     v2 (nth verts (:end-vert halfedge))
+                     m (m/hull
+                        (m/translate (m/sphere 1 15) v1)
+                        (m/translate (m/sphere 3 15) v2))]
+                 (if (m/is-forward halfedge)
+                   (m/color m [1 0 0 0.6])
+                   (m/color m [0 0 1 0.6])))))))
+    (m/get-mesh)
+    (m/export-mesh "get-halfedges.glb" :material (m/material :roughness 0.0
+                                                             :metalness 0.0
+                                                             :color-idx 0
+                                                             :alpha-idx 3)))
+```
+
+![Get Halfedges](resources/images/get-halfedges.png)
+
+The halfedge array is a useful data-structure that can be used to "walk" over adjacent faces of manifolds.
+
+
+## Get Triangles
+
+![Get Triangles](resources/images/get-triangle.png)
+
+``` clojure
+(m/get-triangles )
+```
 
 # Example Projects
 
