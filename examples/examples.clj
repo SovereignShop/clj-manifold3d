@@ -48,7 +48,7 @@
      (m/circle 5)
      (-> (m/square 10 10 true)
          (m/translate [30 0])))
-    (m/extrude 80 70 180 [0.7 0.7])
+    (m/extrude 10)
     (m/get-mesh)
     (m/export-mesh "hull2D.glb" :material mesh-material))
 
@@ -58,7 +58,7 @@
             (-> (m/sphere 4 120)
                 (m/translate [0 0 20])))
     (m/get-mesh)
-    (m/export-mesh "hull3D.glb"))
+    (m/export-mesh "hull3D.glb" :material mesh-material))
 
 ;; Revolution
 

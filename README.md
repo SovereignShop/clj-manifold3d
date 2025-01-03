@@ -3,12 +3,9 @@
 
 # clj-manifold3d
 
-This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. The CLJ implementation is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold. The CLJS implementation is based on emscripten build of Manifold for wasm.
+This library provides a Clojure(Script) wrapper over Emmett Lalish's incredible Manifold 3D geometry library. The CLJ implementation is based on JNI bindings to c++ produced via. javacpp: see https://github.com/SovereignShop/manifold.
 
 It implements most of the library functionality, plus extends it to support polyhedrons and lofts. It provides nearly a full superset of OpenSCAD functionality.
-
-Manifold represents a dramatic advance in the state-of-the-art of open-source programmatic CAD. It has been adopted by most major CAD kernels.
-
 
 # Install
 
@@ -117,12 +114,12 @@ Cross Sections are (roughly) isomorphic to a set of polygons for which vertex or
 (require '[clj-manifold3d.core :as m])
                                        
 (def mesh-material (m/material :roughness 0.0 :metalness 0.0 :color [0.0 0.7 0.7 1]))
-                                       
+
 (-> (m/hull
      (m/circle 5)
      (-> (m/square 10 10 true)
          (m/translate [30 0])))
-    (m/extrude 80 70 180 [0.7 0.7])
+    (m/extrude 10)
     (m/get-mesh)
     (m/export-mesh "hull2D.glb" :material mesh-material))
 ```
@@ -136,7 +133,7 @@ Cross Sections are (roughly) isomorphic to a set of polygons for which vertex or
             (-> (m/sphere 4 120)
                 (m/translate [0 0 20])))
     (m/get-mesh)
-    (m/export-mesh "hull3D.glb"))
+    (m/export-mesh "hull3D.glb" :material mesh-material))
 ```
 
 ![3D hull](resources/images/3D-hull.png)
