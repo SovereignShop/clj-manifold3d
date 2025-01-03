@@ -58,7 +58,7 @@ Manifolds are the core datatype representing a 3D object. They are water-tight m
       (m/export-mesh "manifolds.glb" :material mesh-material)))
 ```
 
-![Manifold](resources/images/manifold.glb)
+![Manifold](resources/images/manifolds.png)
 
 ## Cross Sections
 
@@ -104,7 +104,7 @@ Cross Sections are (roughly) isomorphic to a set of polygons for which vertex or
       (m/export-mesh "revolve.glb" :material mesh-material)))
 ```
 
-![Partial revolve](resources/images/revolution.png)
+![Partial revolve](resources/images/revolve.png)
 
 
 
@@ -124,7 +124,7 @@ Cross Sections are (roughly) isomorphic to a set of polygons for which vertex or
     (m/export-mesh "hull2D.glb" :material mesh-material))
 ```
 
-![2D hull](resources/images/2D-hull.png)
+![2D hull](resources/images/hull2D.png)
 
 ## 3D hulls
 
@@ -136,7 +136,7 @@ Cross Sections are (roughly) isomorphic to a set of polygons for which vertex or
     (m/export-mesh "hull3D.glb" :material mesh-material))
 ```
 
-![3D hull](resources/images/3D-hull.png)
+![3D hull](resources/images/hull3d.png)
 
 ## Polyhedron
 
@@ -159,7 +159,7 @@ Cross Sections are (roughly) isomorphic to a set of polygons for which vertex or
     (m/export-mesh "polyhedron-cube.glb" :material mesh-material))
 ```
 
-![Partial revolve](resources/images/polyhedron.png)
+![Partial revolve](resources/images/polyhedron-cube.png)
 
 
 ## Frames
@@ -444,15 +444,6 @@ You can get the Halfedges of a Manifold using `get-halfgedges`:
 ![Get Halfedges](resources/images/get-halfedges.png)
 
 The halfedge array is a useful data-structure that can be used to "walk" over adjacent faces of manifolds.
-
-
-## Get Triangles
-
-![Get Triangles](resources/images/get-triangle.png)
-
-``` clojure
-(m/get-triangles )
-```
 
 # Example Projects
 
